@@ -1,0 +1,7 @@
+{
+  "calc_fibonacci": {
+    "script": "skills_vault/calc_fibonacci.py",
+    "description": "Computes Fibonacci sequence",
+    "verified": true
+  }
+}

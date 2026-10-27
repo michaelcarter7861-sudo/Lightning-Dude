@@ -25,18 +25,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-Agent Trainer Council & Pre-Build IQ Validation Gate
+      - name: Run 7-Agent Council & 8-Gate IQ/Execution Validation Suite
         run: |
           python scripts/validate_lightning_iq.py
+
+      - name: Test Lightning-Dude CLI Single Command Execution
+        run: |
+          python lightning_cli.py --cmd "Hey Lightning Dude, check security and trace attacker"
 
       - name: Package Lightning-Dude Portable Bundle
         run: |
           mkdir -p dist/LightningDude
-          cp -r core agents scripts datasets system_dna.json requirements.txt dist/LightningDude/
-          tar -czvf dist/LightningDude-Portable-v1.tar.gz -C dist LightningDude
+          cp -r core agents scripts datasets skills_vault knowledge_vault canary_traps system_dna.json lightning_cli.py requirements.txt dist/LightningDude/
+          tar -czvf dist/LightningDude-Portable-v2.tar.gz -C dist LightningDude
 
       - name: Upload Lightning-Dude Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-Portable-Brain-Bundle
-          path: dist/LightningDude-Portable-v1.tar.gz
+          name: LightningDude-Portable-Brain-Bundle-v2
+          path: dist/LightningDude-Portable-v2.tar.gz
