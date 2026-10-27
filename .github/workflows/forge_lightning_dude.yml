@@ -13,22 +13,9 @@ on:
         description: "Custom 18-Layer 580MB Neural Training Epochs (e.g. 20 to 100)"
         required: false
         default: "20"
-      - name: Commit and Push Trained Model to Repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name "Lightning Dude Autonomous Forger"
-          git config --global user.email "forger@lightning.dude"
-          
-          # Git status check kar ke naye ya updated models ko add karna
-          git add models/ dist/
-          
-          # Agar koi changes hongi tab hi commit chalega
-          git status
-          git diff --staged --quiet || git commit -m "feat: auto-commit forged 500M sovereign model weights and bundles"
-          
-          # Repository mein push karna
-          git push origin main
+
+permissions:
+  contents: write
 
 jobs:
   train-sovereign-model:
@@ -86,6 +73,17 @@ jobs:
           cp -r core agents scripts datasets models skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py .opencode.json requirements.txt dist/LightningDudeSovereign/
           tar -czvf dist/LightningDude-CustomSovereign-580MB.tar.gz -C dist LightningDudeSovereign
           ls -lh dist/LightningDude-CustomSovereign-580MB.tar.gz
+
+      - name: Commit and Push Trained Model to Repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "Lightning Dude Autonomous Forger"
+          git config --global user.email "forger@lightning.dude"
+          git add models/ dist/
+          git status
+          git diff --staged --quiet || git commit -m "feat: auto-commit forged 500M sovereign model weights and bundles"
+          git push origin main
 
       - name: Upload Custom ~580MB Sovereign Model Artifact
         uses: actions/upload-artifact@v4
