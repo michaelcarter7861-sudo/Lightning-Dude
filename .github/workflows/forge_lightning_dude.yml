@@ -28,7 +28,6 @@ jobs:
         env:
           LLM_CONFIG_SECRET: ${{ secrets.LLM_CONFIG_JSON }}
         run: |
-<<<<<<< HEAD
           if [ -n "$LLM_CONFIG_SECRET" ]; then
             echo "$LLM_CONFIG_SECRET" > llm_config.json
             echo "[⚡] llm_config.json injected successfully from repository secrets."
@@ -37,13 +36,6 @@ jobs:
           fi
 
       - name: Run Advanced OpenCode Multi-Provider Training Distillation
-=======
-          # GitHub secret se JSON config file generate karna
-          echo "$LLM_CONFIG_SECRET" > llm_config.json
-          echo "[⚡] llm_config.json injected successfully from repository secrets."
-
-      - name: Run OpenCode Synthetic Dataset Distillation
->>>>>>> 2bcff0dea8e802b00719accd46d760ab14b06a66
         run: |
           python scripts/generate_opencode_training_data.py
 
@@ -55,19 +47,10 @@ jobs:
         run: |
           mkdir -p dist/LightningDudeSovereign
           cp -r core agents scripts datasets skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py .opencode.json llm_config.json requirements.txt dist/LightningDudeSovereign/
-<<<<<<< HEAD
           tar -czvf dist/LightningDude-SovereignModel-v6.tar.gz -C dist LightningDudeSovereign
-=======
-          tar -czvf dist/LightningDude-SovereignModel-v5.tar.gz -C dist LightningDudeSovereign
->>>>>>> 2bcff0dea8e802b00719accd46d760ab14b06a66
 
       - name: Upload Sovereign Model Artifact
         uses: actions/upload-artifact@v4
         with:
-<<<<<<< HEAD
           name: LightningDude-SovereignModel-v6
           path: dist/LightningDude-SovereignModel-v6.tar.gz
-=======
-          name: LightningDude-SovereignModel-v5
-          path: dist/LightningDude-SovereignModel-v5.tar.gz
->>>>>>> 2bcff0dea8e802b00719accd46d760ab14b06a66
