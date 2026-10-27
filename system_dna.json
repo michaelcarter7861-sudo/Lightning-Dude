@@ -1,6 +1,6 @@
 {
   "agent_name": "Lightning Dude",
-  "first_boot_timestamp": 1793113895,
+  "first_boot_timestamp": 1793114098,
   "execution_tier": "LIGHTWEIGHT_EDGE_MODE",
   "hardware": {
     "architecture": "aarch64",
@@ -8,9 +8,9 @@
     "cpu_physical_cores": 4,
     "cpu_logical_threads": 4,
     "ram_total_gb": 2.77,
-    "ram_available_gb": 0.93,
+    "ram_available_gb": 0.62,
     "disk_total_gb": 24.05,
-    "disk_free_gb": 9.33
+    "disk_free_gb": 9.32
   },
   "environment": {
     "os_system": "Android-Termux",

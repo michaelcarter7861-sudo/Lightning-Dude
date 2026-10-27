@@ -3,5 +3,10 @@
     "script": "skills_vault/calc_fibonacci.py",
     "description": "Computes Fibonacci sequence",
     "verified": true
+  },
+  "calc_fib": {
+    "script": "skills_vault/calc_fib.py",
+    "description": "Auto-forged skill: calc_fib",
+    "verified": true
   }
 }

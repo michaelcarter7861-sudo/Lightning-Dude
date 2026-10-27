@@ -1,0 +1,34 @@
+{
+  "documents": {
+    "/data/data/com.termux/files/usr/tmp/tmpb3_g2miv/client_seo_backlinks_october.txt": {
+      "name": "client_seo_backlinks_october.txt",
+      "updated_at": 1793114099,
+      "token_freq": {
+        "client": 2,
+        "seo": 1,
+        "backlinks": 1,
+        "october": 1,
+        "txt": 1,
+        "high": 1,
+        "authority": 1,
+        "backlink": 1,
+        "strategy": 1,
+        "and": 1,
+        "domain": 1,
+        "ranking": 1,
+        "checklist": 1,
+        "for": 1,
+        "campaign": 1
+      },
+      "preview": "High authority backlink strategy and domain ranking checklist for client campaign."
+    }
+  },
+  "episodes": [
+    {
+      "timestamp": 1793114099,
+      "command": "give me my morning briefing",
+      "domain": "productivity_secretary",
+      "outcome": "EXECUTED"
+    }
+  ]
+}

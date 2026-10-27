@@ -5,6 +5,8 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  schedule:
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 jobs:
@@ -25,22 +27,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-Agent Council & 8-Gate IQ/Execution Validation Suite
+      - name: Run 7-Agent Council & 12-Gate Master Validation Suite
         run: |
           python scripts/validate_lightning_iq.py
 
-      - name: Test Lightning-Dude CLI Single Command Execution
+      - name: Test Lightning-Dude CLI Execution
         run: |
           python lightning_cli.py --cmd "Hey Lightning Dude, check security and trace attacker"
 
-      - name: Package Lightning-Dude Portable Bundle
+      - name: Package Lightning-Dude Complete J.A.R.V.I.S. Bundle
         run: |
           mkdir -p dist/LightningDude
-          cp -r core agents scripts datasets skills_vault knowledge_vault canary_traps system_dna.json lightning_cli.py requirements.txt dist/LightningDude/
-          tar -czvf dist/LightningDude-Portable-v2.tar.gz -C dist LightningDude
+          cp -r core agents scripts datasets skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py requirements.txt dist/LightningDude/
+          tar -czvf dist/LightningDude-JarvisEdition-v3.tar.gz -C dist LightningDude
 
       - name: Upload Lightning-Dude Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-Portable-Brain-Bundle-v2
-          path: dist/LightningDude-Portable-v2.tar.gz
+          name: LightningDude-JarvisEdition-v3
+          path: dist/LightningDude-JarvisEdition-v3.tar.gz
