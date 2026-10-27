@@ -1,0 +1,22 @@
+{
+  "timestamp_utc": 1793113441,
+  "threat_detected": true,
+  "rogue_process": "stealth_stealer.exe",
+  "rogue_pid": 9942,
+  "remote_endpoint": "185.220.101.45:4444",
+  "actions_taken": [
+    "TERMINATED_PID_9942",
+    "FIREWALL_BLOCKED_IP_185.220.101.45",
+    "QUARANTINED_EXECUTABLE_HASH"
+  ],
+  "origin_trace": {
+    "attacker_ip": "185.220.101.45",
+    "trace_id": "TRACE-4C779BE1B744",
+    "estimated_geo": {
+      "country": "Traced-External-Node",
+      "network_type": "Suspicious C2 / Data Exfiltration Endpoint",
+      "routing_hops_traced": 8
+    },
+    "isp_asn_record": "ASN-RECON-18500"
+  }
+}
