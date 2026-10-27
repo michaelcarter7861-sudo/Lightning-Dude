@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/schemas/config.json",
+  "provider": "zen",
+  "model": "zen/coding-agent-free",
+  "agents": {
+    "primary": "build",
+    "subagents": ["general", "debugger"]
+  },
+  "shell": {
+    "path": "/bin/bash",
+    "args": ["-l"]
+  }
+}
