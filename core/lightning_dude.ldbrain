@@ -1,183 +1,269 @@
 {
-  "brain_version": "1.0.0-JarvisCore",
-  "autonomous_goap_enabled": true,
-  "nodes": [
-    {
-      "domain": "os_control",
+  "domains": {
+    "os_control": {
       "token_weights": {
-        "optimize": 1,
-        "system": 1,
-        "pc": 1,
-        "slow": 1,
-        "free": 1,
-        "ram": 1,
-        "boost": 1,
-        "performance": 1,
-        "clear": 1,
-        "cache": 1
+        "cpu": 5,
+        "ram": 5,
+        "memory": 5,
+        "process": 5,
+        "battery": 5,
+        "thermal": 5,
+        "volume": 5,
+        "brightness": 5,
+        "wifi": 5,
+        "bluetooth": 5,
+        "kill": 5,
+        "optimize": 5,
+        "system": 5,
+        "slow": 5,
+        "speed": 5,
+        "governor": 5
       },
-      "plan": [
-        "scan_heavy_processes",
-        "clear_temp_cache",
-        "prioritize_foreground_app",
-        "speak_report"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Right away, Sir. Non-essential background tasks have been throttled and memory cache is clean."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "os_control",
+    "gui_automation": {
       "token_weights": {
-        "hardware": 1,
-        "control": 1,
-        "wifi": 1,
-        "bluetooth": 1,
-        "volume": 1,
-        "brightness": 1,
-        "battery": 1,
-        "saver": 1
+        "screen": 5,
+        "click": 5,
+        "button": 5,
+        "window": 5,
+        "mouse": 5,
+        "keyboard": 5,
+        "type": 5,
+        "ocr": 5,
+        "ui": 5,
+        "coordinate": 5,
+        "scroll": 5,
+        "tap": 5,
+        "gui": 5
       },
-      "plan": [
-        "detect_os_hardware_hook",
-        "apply_hardware_setting",
-        "verify_state_change"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Hardware configuration updated according to your command, Sir."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "gui_automation",
+    "file_management": {
       "token_weights": {
-        "open": 1,
-        "app": 1,
-        "click": 1,
-        "button": 1,
-        "fill": 1,
-        "excel": 1,
-        "screen": 1,
-        "action": 1,
-        "type": 1,
-        "in": 1,
-        "window": 1
+        "file": 5,
+        "folder": 5,
+        "directory": 5,
+        "duplicate": 5,
+        "organize": 5,
+        "downloads": 5,
+        "sort": 5,
+        "delete": 5,
+        "archive": 5,
+        "backup": 5,
+        "rename": 5,
+        "sha256": 5,
+        "storage": 5
       },
-      "plan": [
-        "capture_screen_ocr",
-        "locate_ui_coordinates",
-        "dispatch_mouse_keyboard_input",
-        "verify_ui_response"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Visual interface locked. Executing human-level GUI operations on screen now, Sir."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "file_management",
+    "productivity_secretary": {
       "token_weights": {
-        "clean": 1,
-        "downloads": 1,
-        "organize": 1,
-        "files": 1,
-        "find": 1,
-        "document": 1,
-        "convert": 1,
-        "pdf": 1,
-        "remove": 1,
-        "duplicates": 1
+        "schedule": 5,
+        "agenda": 5,
+        "briefing": 5,
+        "morning": 5,
+        "reminder": 5,
+        "task": 5,
+        "calendar": 5,
+        "meeting": 5,
+        "deadline": 5,
+        "habit": 5,
+        "note": 5,
+        "summary": 5
       },
-      "plan": [
-        "scan_directory_tree",
-        "classify_by_extension_and_hash",
-        "move_and_index_files",
-        "update_omni_vault"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Directory structure organized and indexed in Omni-Vault, Sir."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "productivity_secretary",
+    "deep_web_research": {
       "token_weights": {
-        "morning": 1,
-        "briefing": 1,
-        "set": 1,
-        "reminder": 1,
-        "draft": 1,
-        "email": 1,
-        "schedule": 1,
-        "task": 1,
-        "daily": 1,
-        "status": 1
+        "search": 5,
+        "web": 5,
+        "scrape": 5,
+        "internet": 5,
+        "research": 5,
+        "article": 5,
+        "documentation": 5,
+        "news": 5,
+        "url": 5,
+        "fetch": 5,
+        "summarize": 5,
+        "online": 5
       },
-      "plan": [
-        "check_system_vitals",
-        "fetch_pending_tasks",
-        "compose_executive_summary",
-        "speak_briefing"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Good day, Sir. System health is optimal and your priority tasks are queued."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "deep_web_research",
+    "self_coding": {
       "token_weights": {
-        "research": 1,
-        "topic": 1,
-        "search": 1,
-        "browser": 1,
-        "extract": 1,
-        "data": 1,
-        "compare": 1,
-        "prices": 1,
-        "scrape": 1,
-        "website": 1
+        "code": 5,
+        "python": 5,
+        "script": 5,
+        "function": 5,
+        "bug": 5,
+        "debug": 5,
+        "refactor": 5,
+        "compile": 5,
+        "ast": 5,
+        "module": 5,
+        "program": 5,
+        "write": 5,
+        "synthesizer": 5,
+        "algorithm": 5
       },
-      "plan": [
-        "launch_stealth_browser",
-        "navigate_and_extract_dom",
-        "cross_verify_facts",
-        "save_research_dossier"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "Deep browser reconnaissance complete, Sir. Key findings have been compiled."
+      "voice_response": "Right away, Sir."
     },
-    {
-      "domain": "self_coding",
+    "cyber_security": {
       "token_weights": {
-        "write": 1,
-        "script": 1,
-        "fix": 1,
-        "error": 1,
-        "build": 1,
-        "tool": 1,
-        "debug": 1,
-        "log": 1,
-        "automate": 1,
-        "workflow": 1
+        "hack": 5,
+        "security": 5,
+        "port": 5,
+        "firewall": 5,
+        "intrusion": 5,
+        "canary": 5,
+        "ransomware": 5,
+        "ip": 5,
+        "trace": 5,
+        "socket": 5,
+        "spyware": 5,
+        "sentinel": 5,
+        "threat": 5,
+        "malicious": 5,
+        "rogue": 5,
+        "breach": 5
       },
-      "plan": [
-        "analyze_problem_spec",
-        "synthesize_python_tool",
-        "test_in_sandbox",
-        "register_skill_in_vault"
+      "action_plan": [
+        "analyze_intent",
+        "execute_sovereign_routine",
+        "verify_state"
       ],
-      "response_template": "I have forged and verified a new custom module in the Skills Vault for this task, Sir."
-    },
-    {
-      "domain": "cyber_security",
-      "token_weights": {
-        "check": 1,
-        "security": 1,
-        "spyware": 1,
-        "scan": 1,
-        "who": 1,
-        "is": 1,
-        "stealing": 1,
-        "data": 1,
-        "trace": 1,
-        "attacker": 1,
-        "block": 1,
-        "ip": 1
-      },
-      "plan": [
-        "inspect_active_sockets",
-        "kill_unauthorized_process",
-        "block_ip_in_firewall",
-        "trace_geo_and_isp",
-        "export_forensic_report"
-      ],
-      "response_template": "Alert, Sir! Unauthorized data exfiltration neutralized, IP blocked, and forensic location dossier generated."
+      "voice_response": "Right away, Sir."
     }
-  ]
+  },
+  "idf": {
+    "cpu": 2.6094,
+    "ram": 2.6094,
+    "memory": 2.6094,
+    "process": 2.6094,
+    "battery": 2.6094,
+    "thermal": 2.6094,
+    "volume": 2.6094,
+    "brightness": 2.6094,
+    "wifi": 2.6094,
+    "bluetooth": 2.6094,
+    "kill": 2.6094,
+    "optimize": 2.6094,
+    "system": 2.6094,
+    "slow": 2.6094,
+    "speed": 2.6094,
+    "governor": 2.6094,
+    "screen": 2.6094,
+    "click": 2.6094,
+    "button": 2.6094,
+    "window": 2.6094,
+    "mouse": 2.6094,
+    "keyboard": 2.6094,
+    "type": 2.6094,
+    "ocr": 2.6094,
+    "ui": 2.6094,
+    "coordinate": 2.6094,
+    "scroll": 2.6094,
+    "tap": 2.6094,
+    "gui": 2.6094,
+    "file": 2.6094,
+    "folder": 2.6094,
+    "directory": 2.6094,
+    "duplicate": 2.6094,
+    "organize": 2.6094,
+    "downloads": 2.6094,
+    "sort": 2.6094,
+    "delete": 2.6094,
+    "archive": 2.6094,
+    "backup": 2.6094,
+    "rename": 2.6094,
+    "sha256": 2.6094,
+    "storage": 2.6094,
+    "schedule": 2.6094,
+    "agenda": 2.6094,
+    "briefing": 2.6094,
+    "morning": 2.6094,
+    "reminder": 2.6094,
+    "task": 2.6094,
+    "calendar": 2.6094,
+    "meeting": 2.6094,
+    "deadline": 2.6094,
+    "habit": 2.6094,
+    "note": 2.6094,
+    "summary": 2.6094,
+    "search": 2.6094,
+    "web": 2.6094,
+    "scrape": 2.6094,
+    "internet": 2.6094,
+    "research": 2.6094,
+    "article": 2.6094,
+    "documentation": 2.6094,
+    "news": 2.6094,
+    "url": 2.6094,
+    "fetch": 2.6094,
+    "summarize": 2.6094,
+    "online": 2.6094,
+    "code": 2.6094,
+    "python": 2.6094,
+    "script": 2.6094,
+    "function": 2.6094,
+    "bug": 2.6094,
+    "debug": 2.6094,
+    "refactor": 2.6094,
+    "compile": 2.6094,
+    "ast": 2.6094,
+    "module": 2.6094,
+    "program": 2.6094,
+    "write": 2.6094,
+    "synthesizer": 2.6094,
+    "algorithm": 2.6094,
+    "hack": 2.6094,
+    "security": 2.6094,
+    "port": 2.6094,
+    "firewall": 2.6094,
+    "intrusion": 2.6094,
+    "canary": 2.6094,
+    "ransomware": 2.6094,
+    "ip": 2.6094,
+    "trace": 2.6094,
+    "socket": 2.6094,
+    "spyware": 2.6094,
+    "sentinel": 2.6094,
+    "threat": 2.6094,
+    "malicious": 2.6094,
+    "rogue": 2.6094,
+    "breach": 2.6094
+  },
+  "trained": true
 }

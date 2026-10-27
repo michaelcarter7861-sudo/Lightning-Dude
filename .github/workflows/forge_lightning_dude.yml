@@ -4,10 +4,20 @@ on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
+    inputs:
+      distillation_rounds:
+        description: "Multi-Provider Bilingual API Synthesis Rounds (e.g. 3 to 30)"
+        required: false
+        default: "3"
+      sovereign_epochs:
+        description: "Custom 18-Layer 580MB Neural Training Epochs (e.g. 20 to 100)"
+        required: false
+        default: "20"
 
 jobs:
   train-sovereign-model:
     runs-on: ubuntu-latest
+    timeout-minutes: 350
 
     steps:
       - name: Checkout Lightning-Dude Repository
@@ -19,7 +29,7 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install PyTorch Deep Learning Engine & Dependencies
+      - name: Install PyTorch CPU Engine & Dependencies (Zero External Models)
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -37,27 +47,33 @@ jobs:
             echo "[WARNING] LLM_CONFIG_JSON secret not found in repo settings."
           fi
 
-      - name: Execute Multi-Provider Free-LLM & OpenCode Distillation
+      - name: Stage 1 - Multi-Provider Free-LLM Bilingual (Urdu + English) Distillation
+        env:
+          DISTILLATION_ROUNDS: ${{ github.event.inputs.distillation_rounds || '3' }}
         run: |
           python scripts/generate_opencode_training_data.py
 
-      - name: Train Sovereign 4-Layer Transformer Neural Model (180 Epochs)
+      - name: Stage 2 - Train 100% Custom 18-Layer (~580MB) Sovereign Neural Model From Scratch
+        env:
+          SOVEREIGN_EPOCHS: ${{ github.event.inputs.sovereign_epochs || '20' }}
         run: |
           python scripts/train_sovereign_weights.py
 
-      - name: Run 15-Gate Master Validation Suite
+      - name: Stage 3 - Run 15-Gate Master Validation Suite
         run: |
           python scripts/validate_lightning_iq.py
 
-      - name: Package Sovereign Lightning Dude Model & Neural Weights
+      - name: Stage 4 - Package 100% Custom ~580MB Sovereign Model Bundle
         run: |
           rm -f llm_config.json
           mkdir -p dist/LightningDudeSovereign
           cp -r core agents scripts datasets models skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py .opencode.json requirements.txt dist/LightningDudeSovereign/
-          tar -czvf dist/LightningDude-SovereignModel-v7.tar.gz -C dist LightningDudeSovereign
+          tar -czvf dist/LightningDude-CustomSovereign-580MB.tar.gz -C dist LightningDudeSovereign
+          ls -lh dist/LightningDude-CustomSovereign-580MB.tar.gz
 
-      - name: Upload Trained Sovereign Model Artifact
+      - name: Upload Custom ~580MB Sovereign Model Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-SovereignModel-v7
-          path: dist/LightningDude-SovereignModel-v7.tar.gz
+          name: LightningDude-CustomSovereign-580MB
+          path: dist/LightningDude-CustomSovereign-580MB.tar.gz
+          compression-level: 0
