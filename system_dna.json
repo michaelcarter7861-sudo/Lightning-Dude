@@ -1,6 +1,6 @@
 {
   "agent_name": "Lightning Dude",
-  "first_boot_timestamp": 1793114098,
+  "first_boot_timestamp": 1793114401,
   "execution_tier": "LIGHTWEIGHT_EDGE_MODE",
   "hardware": {
     "architecture": "aarch64",
@@ -8,7 +8,7 @@
     "cpu_physical_cores": 4,
     "cpu_logical_threads": 4,
     "ram_total_gb": 2.77,
-    "ram_available_gb": 0.62,
+    "ram_available_gb": 0.81,
     "disk_total_gb": 24.05,
     "disk_free_gb": 9.32
   },

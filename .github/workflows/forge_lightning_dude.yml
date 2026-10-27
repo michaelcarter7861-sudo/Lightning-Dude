@@ -27,22 +27,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-Agent Council & 12-Gate Master Validation Suite
+      - name: Run 7-Agent Council & 15-Gate Master Validation Suite
         run: |
           python scripts/validate_lightning_iq.py
 
-      - name: Test Lightning-Dude CLI Execution
+      - name: Test Lightning-Dude CLI with Sci-Fi HUD
         run: |
-          python lightning_cli.py --cmd "Hey Lightning Dude, check security and trace attacker"
+          python lightning_cli.py --hud --cmd "Hey Lightning Dude, check security and trace attacker"
 
-      - name: Package Lightning-Dude Complete J.A.R.V.I.S. Bundle
+      - name: Package Lightning-Dude Final Standalone J.A.R.V.I.S. Edition
         run: |
           mkdir -p dist/LightningDude
           cp -r core agents scripts datasets skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py requirements.txt dist/LightningDude/
-          tar -czvf dist/LightningDude-JarvisEdition-v3.tar.gz -C dist LightningDude
+          tar -czvf dist/LightningDude-JarvisFinal-v4.tar.gz -C dist LightningDude
 
-      - name: Upload Lightning-Dude Build Artifact
+      - name: Upload Final Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-JarvisEdition-v3
-          path: dist/LightningDude-JarvisEdition-v3.tar.gz
+          name: LightningDude-JarvisFinal-v4
+          path: dist/LightningDude-JarvisFinal-v4.tar.gz
