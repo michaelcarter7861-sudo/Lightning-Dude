@@ -47,7 +47,7 @@ jobs:
           path: |
             ~/.buildozer
             .buildozer
-          key: buildozer-cython029-py311-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-cython029-py311-ndk25b-${{ hashFiles('buildozer.spec') }}
 
       - name: Patch Android Safe Telemetry & Log Level
         run: |
@@ -93,6 +93,9 @@ jobs:
           PIP_CONSTRAINT: /tmp/pip_constraints.txt
           GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false"
           CFLAGS: "-Wno-error=incompatible-function-pointer-types -Wno-error=implicit-function-declaration -Wno-error=int-conversion"
+          ANDROIDNDK: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
+          ANDROID_NDK_HOME: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
+          ANDROID_NDK_ROOT: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
         run: |
           yes | buildozer android debug
 
