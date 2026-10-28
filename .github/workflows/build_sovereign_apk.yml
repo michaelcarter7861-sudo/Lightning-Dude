@@ -72,9 +72,9 @@ jobs:
                   exec_file.write_text(txt, encoding="utf-8")
           spec = Path("buildozer.spec")
           if spec.exists():
-              stxt = spec.read_text(encoding="utf-8").replace("log_level = 2", "log_level = 1")
+              stxt = spec.read_text(encoding="utf-8").replace("log_level = 1", "log_level = 2")
               spec.write_text(stxt, encoding="utf-8")
-          print("[⚡] Patches applied!")
+          print("[⚡] Patches applied & Debug log level 2 set!")
           '
 
       - name: Lock Cython 0.29.36 Globally & Install Buildozer
