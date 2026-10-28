@@ -1,0 +1,12 @@
+{
+  "split_files": {
+    "model-00001-of-00019.safetensors": [
+      "model-00001-of-00019.safetensors.part00",
+      "model-00001-of-00019.safetensors.part01",
+      "model-00001-of-00019.safetensors.part02",
+      "model-00001-of-00019.safetensors.part03",
+      "model-00001-of-00019.safetensors.part04",
+      "model-00001-of-00019.safetensors.part05"
+    ]
+  }
+}
