@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       distillation_rounds:
-        description: "Multi-Provider Bilingual API Synthesis Rounds (e.g. 3 to 30)"
+        description: "Multi-Provider Bilingual API Synthesis Rounds (e.g. 3 to 20)"
         required: false
-        default: "3"
+        default: "2"
       sovereign_epochs:
-        description: "Custom 18-Layer 580MB Neural Training Epochs (e.g. 20 to 100)"
+        description: "Qwen2.5-0.5B Uncensored Overwrite Epochs (e.g. 2 to 15)"
         required: false
-        default: "20"
+        default: "2"
 
 permissions:
   contents: write
@@ -32,12 +32,12 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install PyTorch CPU Engine & Dependencies (Zero External Models)
+      - name: Install PyTorch, Transformers, PEFT (LoRA) & SafeTensors
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers peft accelerate safetensors sentencepiece
           pip install -r requirements.txt
-          npm install -g opencode-ai || true
 
       - name: Inject & Auto-Repair Multi-Provider LLM Config from Secrets
         env:
@@ -50,15 +50,15 @@ jobs:
             echo "[WARNING] LLM_CONFIG_JSON secret not found in repo settings."
           fi
 
-      - name: Stage 1 - Multi-Provider Free-LLM Bilingual (Urdu + English) Distillation
+      - name: Stage 1 - Multi-Provider Bilingual (Urdu + English) Distillation
         env:
-          DISTILLATION_ROUNDS: ${{ github.event.inputs.distillation_rounds || '3' }}
+          DISTILLATION_ROUNDS: ${{ github.event.inputs.distillation_rounds || '2' }}
         run: |
           python scripts/generate_opencode_training_data.py
 
-      - name: Stage 2 - Train 100% Custom 18-Layer (~580MB) Sovereign Neural Model From Scratch
+      - name: Stage 2 - Overwrite & Fine-Tune Qwen2.5-0.5B into Uncensored Sovereign Model
         env:
-          SOVEREIGN_EPOCHS: ${{ github.event.inputs.sovereign_epochs || '20' }}
+          SOVEREIGN_EPOCHS: ${{ github.event.inputs.sovereign_epochs || '2' }}
         run: |
           python scripts/train_sovereign_weights.py
 
@@ -66,28 +66,40 @@ jobs:
         run: |
           python scripts/validate_lightning_iq.py
 
-      - name: Stage 4 - Package 100% Custom ~580MB Sovereign Model Bundle
-        run: |
-          rm -f llm_config.json
-          mkdir -p dist/LightningDudeSovereign
-          cp -r core agents scripts datasets models skills_vault knowledge_vault canary_traps omni_vault system_dna.json lightning_cli.py .opencode.json requirements.txt dist/LightningDudeSovereign/
-          tar -czvf dist/LightningDude-CustomSovereign-580MB.tar.gz -C dist LightningDudeSovereign
-          ls -lh dist/LightningDude-CustomSovereign-580MB.tar.gz
-
-      - name: Commit and Push Trained Model to Repository
+      - name: Stage 4 - Commit & Push Forged Model Directly Into Repository Folder (Chunked Push)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          rm -f llm_config.json
+          rm -rf dist/ models/lightning_sovereign_custom_580mb.pt
+          find . -type d -name "__pycache__" -exec rm -rf {} + || true
+
           git config --global user.name "Lightning Dude Autonomous Forger"
           git config --global user.email "forger@lightning.dude"
-          git add models/ dist/
-          git status
-          git diff --staged --quiet || git commit -m "feat: auto-commit forged 500M sovereign model weights and bundles"
-          git push origin main
+          git config --global http.postBuffer 524288000
+          git config --global http.maxRequestBuffer 524288000
 
-      - name: Upload Custom ~580MB Sovereign Model Artifact
+          # Pull latest changes first to prevent non-fast-forward conflicts
+          git pull origin main --no-rebase || true
+
+          # Step A: Commit & push dataset, brain, and tokenizer/config files first
+          git add datasets/ core/lightning_dude.ldbrain
+          git add models/LightningDude-Sovereign-500M/*.json models/LightningDude-Sovereign-500M/*.txt models/LightningDude-Sovereign-500M/*.model || true
+          git diff --staged --quiet || (git commit -m "feat(model): add sovereign tokenizer, config and distilled datasets [skip ci]" && git push origin main)
+
+          # Step B: Commit & push each ~45MB model shard one by one so HTTP 408 never happens!
+          for shard in models/LightningDude-Sovereign-500M/*.safetensors; do
+            if [ -f "$shard" ]; then
+              echo "[⚡] Pushing model weight shard: $shard ..."
+              git add "$shard"
+              git diff --staged --quiet || (git commit -m "feat(weights): add forged sovereign neural shard $(basename $shard) [skip ci]" && git push origin main)
+            fi
+          done
+          echo "[✅] Entire 500M Sovereign Model successfully committed into repository folder models/LightningDude-Sovereign-500M/!"
+
+      - name: Stage 5 - Upload Complete Sovereign Model Artifact Backup
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-CustomSovereign-580MB
-          path: dist/LightningDude-CustomSovereign-580MB.tar.gz
+          name: LightningDude-QwenSovereign-500M
+          path: models/LightningDude-Sovereign-500M/
           compression-level: 0

@@ -1,2 +1,0 @@
-psutil>=5.9.0; platform_system != "Android"
-requests>=2.31.0
