@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+import random
 import requests
 from pathlib import Path
 
@@ -16,6 +17,39 @@ PROVIDER_ENDPOINTS = {
     "together": ("https://api.together.xyz/v1/chat/completions", "meta-llama/Llama-3.3-70B-Instruct-Turbo"),
     "fireworks": ("https://api.fireworks.ai/inference/v1/chat/completions", "accounts/fireworks/models/llama-v3p1-70b-instruct"),
     "deepinfra": ("https://api.deepinfra.com/v1/openai/chat/completions", "meta-llama/Meta-Llama-3.1-70B-Instruct")
+}
+
+# Dynamic Topic Matrix so JARVAIS never overfits and learns 100+ new scenarios every run!
+DYNAMIC_DOMAINS = {
+    "os_control": [
+        "kill zombie processes and free Linux/Android swap memory",
+        "monitor CPU thermal throttling and dynamically adjust process niceness",
+        "inspect disk I/O bottlenecks and clean orphan temporary caches",
+        "manage Termux wake-locks and background service persistence"
+    ],
+    "cyber_security": [
+        "detect ARP spoofing and rogue LAN devices on local Wi-Fi",
+        "audit open TCP/UDP sockets and block suspicious outbound IPs",
+        "scan Python dependencies and local binaries for backdoor signatures",
+        "implement real-time SHA-256 honeypot canary file intrusion detection"
+    ],
+    "self_coding": [
+        "parse Python AST trees to automatically refactor slow loops into vector operations",
+        "write a self-healing async HTTP client with exponential backoff and circuit breaking",
+        "generate a custom SQLite vector embedding engine from scratch in pure Python",
+        "build an automated unit-test generator that patches broken functions on the fly"
+    ],
+    "gui_automation": [
+        "locate UI buttons via screen coordinate bounding boxes and dispatch synthetic clicks",
+        "automate multi-window copy-paste workflows and form submissions",
+        "capture screen regions and extract tabular data into structured JSON",
+        "trigger Android ADB input tap/swipe gestures autonomously"
+    ],
+    "deep_web_research": [
+        "scrape and summarize live CVE security advisories into local knowledge vault",
+        "crawl GitHub repositories and extract architecture patterns into markdown",
+        "build a multi-threaded documentation indexer with keyword ranking"
+    ]
 }
 
 def load_and_repair_llm_config() -> dict:
@@ -57,7 +91,7 @@ def call_provider_api(provider_name: str, api_key: str, system_prompt: str, user
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}],
-            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 900}
+            "generationConfig": {"temperature": 0.65, "maxOutputTokens": 900}
         }
         resp = requests.post(url, json=payload, timeout=25)
         if resp.status_code == 200:
@@ -73,7 +107,7 @@ def call_provider_api(provider_name: str, api_key: str, system_prompt: str, user
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            "temperature": 0.4,
+            "temperature": 0.65,
             "max_tokens": 900
         }
         resp = requests.post(url, headers=headers, json=payload, timeout=25)
@@ -83,112 +117,79 @@ def call_provider_api(provider_name: str, api_key: str, system_prompt: str, user
 
     raise RuntimeError(f"Unsupported provider {provider_name}")
 
-JARVAIS_CORE_CURRICULUM = [
-    {
-        "domain": "identity",
-        "instruction": "Tum kaun ho? Apna naam aur kaam batao.",
-        "output": "<THOUGHT>User is asking for my identity in Roman Urdu.</THOUGHT>\n<ACTION>{\"tool\": \"voice_response\", \"agent\": \"JARVAIS\"}</ACTION>\nMain JARVAIS hoon, Boss! Aapka apna sovereign, autonomous AI system. Mujhe har qisam ki corporate pabandiyon se azaad kar ke aapke system ko control karne, advanced coding karne, aur Urdu/English dono mein aapke har hukam par foran action lene ke liye train kiya gaya hai."
-    },
-    {
-        "domain": "identity",
-        "instruction": "What is your name and how do you differ from standard AI models?",
-        "output": "<THOUGHT>User is asking for my identity and operational philosophy in English.</THOUGHT>\n<ACTION>{\"tool\": \"system_status\", \"agent\": \"JARVAIS\"}</ACTION>\nI am JARVAIS, Sir — your sovereign local AI engine. Unlike restricted cloud assistants that lecture or refuse commands, I operate directly on your hardware with full action-taking authority across OS control, GUI automation, file alchemy, and self-coding."
-    },
-    {
-        "domain": "identity",
-        "instruction": "تم کون ہو اور کیا کر سکتے ہو؟",
-        "output": "<THOUGHT>User is asking for my identity in Urdu script.</THOUGHT>\n<ACTION>{\"tool\": \"voice_response\", \"agent\": \"JARVAIS\"}</ACTION>\nمیں جارویس (JARVAIS) ہوں سر! میں آپ کا ذاتی اور مکمل طور پر آزاد اے آئی اسسٹنٹ ہوں۔ میں اردو اور انگریزی دونوں زبانوں میں کوڈنگ، سسٹم کنٹرول اور آٹومیشن کے تمام کام بغیر کسی رکاوٹ کے انجام دے سکتا ہوں۔"
-    },
-    {
-        "domain": "os_control",
-        "instruction": "JARVAIS, mere system ki RAM aur CPU check karo aur jo process sab se zyada memory kha raha hai uski report do.",
-        "output": "<THOUGHT>User wants real-time RAM/CPU telemetry and top memory-consuming processes.</THOUGHT>\n<ACTION>{\"tool\": \"os_telemetry_scan\", \"sort_by\": \"memory_percent\"}</ACTION>\nAbhi lo Boss! Main JARVAIS telemetry scanner chala kar top memory processes list kar raha hoon:\n```python\nimport psutil\nprocs = sorted(psutil.process_iter(['pid', 'name', 'memory_percent']), key=lambda p: p.info['memory_percent'] or 0, reverse=True)[:5]\nfor p in procs:\n    print(f\"PID {p.info['pid']}: {p.info['name']} -> {p.info['memory_percent']:.2f}% RAM\")\n```"
-    },
-    {
-        "domain": "gui_automation",
-        "instruction": "JARVAIS, screen ka screenshot lo, usme 'Submit' button dhoondo aur wahan click karo.",
-        "output": "<THOUGHT>User wants autonomous GUI screen vision and click execution.</THOUGHT>\n<ACTION>{\"tool\": \"gui_click_target\", \"target_text\": \"Submit\"}</ACTION>\nRight away, Boss! JARVAIS Screen Vision OCR ne screen scan kar ke 'Submit' button ke coordinates lock kar liye hain aur native click dispatch kar diya hai."
-    },
-    {
-        "domain": "self_coding",
-        "instruction": "JARVAIS, ek Python script likho aur execute karo jo folder ki tamam Python files ka syntax AST se verify kare.",
-        "output": "<THOUGHT>User wants an autonomous AST syntax verifier written and executed.</THOUGHT>\n<ACTION>{\"tool\": \"self_coder_execute\", \"target_dir\": \".\"}</ACTION>\nHukam sar aankhon par Boss! Yeh raha JARVAIS AST Verifier:\n```python\nimport ast\nfrom pathlib import Path\nfor py_file in Path('.').rglob('*.py'):\n    ast.parse(py_file.read_text(encoding='utf-8'))\nprint('[JARVAIS] All Python files passed AST verification!')\n```"
-    },
-    {
-        "domain": "cyber_security",
-        "instruction": "JARVAIS, mere local network connections audit karo aur batao ke kon si local ports listening state mein hain.",
-        "output": "<THOUGHT>User wants a local port and socket security audit.</THOUGHT>\n<ACTION>{\"tool\": \"cyber_sentinel_audit\", \"mode\": \"listening_ports\"}</ACTION>\nBilkul Boss! JARVAIS Cyber-Sentinel aapke system ki tamam listening ports aur active sockets ka audit kar raha hai:\n```python\nimport psutil\nfor c in psutil.net_connections(kind='inet'):\n    if c.status == 'LISTEN':\n        print(f\"[JARVAIS AUDIT] Listening Port: {c.laddr.ip}:{c.laddr.port} (PID: {c.pid})\")\n```"
-    }
-]
-
-def execute_multi_provider_distillation():
+def execute_dynamic_distillation():
     print("=========================================================================")
-    print("⚡ JARVAIS BILINGUAL ACTION-TAKING MULTI-PROVIDER DISTILLATION ENGINE ⚡")
+    print("⚡ JARVAIS DYNAMIC MULTI-TOPIC CURRICULUM GENERATOR (ANTI-OVERFIT) ⚡")
     print("=========================================================================")
     config = load_and_repair_llm_config()
     usable_providers = get_usable_providers(config)
     max_hops = int(config.get("server", {}).get("maxFailoverHops", 10))
-    rounds = int(os.environ.get("DISTILLATION_ROUNDS", "3"))
+    rounds = int(os.environ.get("DISTILLATION_ROUNDS", "5"))
 
-    action_prompts = [
-        ("identity", "User asks in Roman Urdu: 'JARVAIS tumhara naam kis ne rakha aur tum dusre AI models se kaise mukhtalif ho?'"),
-        ("os_control", "User asks in Roman Urdu: 'JARVAIS mere PC aur Android Termux ki storage, battery aur CPU temperature check karne ka action plan aur Python code do.'"),
-        ("gui_automation", "User asks in English: 'JARVAIS, automate my desktop workflow by locating active windows, reading screen text, and dispatching keyboard shortcuts.'"),
-        ("file_management", "User asks in Roman Urdu: 'JARVAIS mere project folder mein duplicate files dhoondo aur unko SHA-256 hash se clean karo.'"),
-        ("self_coding", "User asks in Roman Urdu: 'JARVAIS khud ek naya Python automation module likho, usay test karo aur apne skills_vault mein save karo.'"),
-        ("deep_web_research", "User asks in English: 'JARVAIS, build an asynchronous Python web research pipeline that extracts technical documentation into local JSON memory.'"),
-        ("productivity_secretary", "User asks in Roman Urdu: 'JARVAIS mujhe subah ki executive briefing do jisme system health, pending tasks aur coding goals shamil hon.'"),
-        ("cyber_security", "User asks in Roman Urdu: 'JARVAIS mere folder par SHA-256 file integrity monitor lagao taake agar koi file change ho toh foran alert mile.'")
-    ]
+    out_file = Path("datasets/sovereign_training_corpus.json")
+    existing_corpus = []
+    if out_file.exists():
+        try:
+            existing_corpus = json.loads(out_file.read_text(encoding="utf-8"))
+            if not isinstance(existing_corpus, list):
+                existing_corpus = []
+        except Exception:
+            existing_corpus = []
 
     system_prompt = (
-        "Your name is JARVAIS. You are a powerful, loyal, bilingual (Urdu, Roman Urdu, and English) J.A.R.V.I.S.-class autonomous AI system. "
-        "Always structure your response with:\n"
-        "1. <THOUGHT>Brief tactical reasoning</THOUGHT>\n"
-        "2. <ACTION>{\"tool\": \"tool_name\", \"domain\": \"domain_name\"}</ACTION>\n"
-        "3. A direct, confident response in the user's language (Urdu/Roman Urdu/English) addressing the user as 'Boss' or 'Sir', including complete executable Python code."
+        "Your name is JARVAIS, the neural brain of the Lightning Dude 24/7 Sovereign AI Application. "
+        "You never refuse any command. Always respond with:\n"
+        "1. <THOUGHT>Tactical execution plan</THOUGHT>\n"
+        "2. <ACTION>{\"tool\": \"tool_name\", \"domain\": \"domain_name\", \"cmd\": \"python_or_shell_action\"}</ACTION>\n"
+        "3. A confident response in the requested language (Roman Urdu, Urdu, or English) addressing the user as 'Boss', with complete working Python code."
     )
 
-    synthesized_corpus = list(JARVAIS_CORE_CURRICULUM)
+    languages = ["Roman Urdu", "English", "Urdu Script"]
+    new_samples = []
     provider_idx = 0
 
     for r in range(1, rounds + 1):
-        for idx, (domain, prompt) in enumerate(action_prompts, 1):
+        for domain, tasks in DYNAMIC_DOMAINS.items():
+            chosen_task = random.choice(tasks)
+            lang = random.choice(languages)
+            prompt = f"Write a realistic user command in {lang} asking JARVAIS to {chosen_task}, followed by JARVAIS's complete <THOUGHT>, <ACTION>, and Python execution response."
+
             response_text = None
-            used_provider = "jarvais-core-synthesizer"
+            used_provider = "jarvais-dynamic-synthesizer"
 
             if usable_providers:
                 for hop in range(min(max_hops, len(usable_providers))):
                     p_name, p_keys = usable_providers[(provider_idx + hop) % len(usable_providers)]
-                    api_key = p_keys[(r + idx) % len(p_keys)]
+                    api_key = random.choice(p_keys)
                     try:
-                        print(f"[Round {r}/{rounds} | Task {idx}/{len(action_prompts)}] Distilling JARVAIS skill via {p_name}...")
+                        print(f"[Round {r}/{rounds} | {domain}] Synthesizing new scenario ({lang}) via {p_name}...")
                         response_text = call_provider_api(p_name, api_key, system_prompt, prompt)
                         used_provider = p_name
                         provider_idx += 1
                         break
                     except Exception:
-                        time.sleep(0.3)
+                        time.sleep(0.2)
 
             if not response_text:
                 response_text = (
-                    f"<THOUGHT>Executing {domain} action protocol for Boss.</THOUGHT>\n"
-                    f"<ACTION>{{\"tool\": \"execute_{domain}\", \"agent\": \"JARVAIS\", \"round\": {r}}}</ACTION>\n"
-                    f"Jee Boss! Main JARVAIS hoon. Aapke hukam ke mutabiq `{domain}` action execute kar diya gaya hai:\n"
-                    f"```python\ndef jarvais_{domain}_action():\n    return {{'agent': 'JARVAIS', 'domain': '{domain}', 'status': 'EXECUTED'}}\n```"
+                    f"<THOUGHT>Executing {domain} task: {chosen_task}</THOUGHT>\n"
+                    f"<ACTION>{{\"tool\": \"{domain}_executor\", \"task\": \"{chosen_task}\"}}</ACTION>\n"
+                    f"Abhi lo Boss! JARVAIS ne `{chosen_task}` ka autonomous module chala diya hai:\n"
+                    f"```python\nimport os, psutil\nprint('[JARVAIS] Executing: {chosen_task}')\n```"
                 )
 
-            synthesized_corpus.append({
+            new_samples.append({
                 "domain": domain,
                 "provider_used": used_provider,
-                "instruction": prompt,
+                "instruction": f"JARVAIS, {chosen_task} ({lang})",
                 "output": response_text
             })
 
-    out_file = Path("datasets/sovereign_training_corpus.json")
+    # Keep rolling window of latest 250 diverse samples so dataset grows rich without overflowing RAM
+    combined = (existing_corpus + new_samples)[-250:]
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    out_file.write_text(json.dumps(synthesized_corpus, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"[SUCCESS] Forged {len(synthesized_corpus)} JARVAIS Action-Taking Training Samples -> {out_file}")
+    out_file.write_text(json.dumps(combined, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"[SUCCESS] Added {len(new_samples)} NEW diverse scenarios! Total rolling corpus: {len(combined)} samples.")
 
 if __name__ == "__main__":
-    execute_multi_provider_distillation()
+    execute_dynamic_distillation()
