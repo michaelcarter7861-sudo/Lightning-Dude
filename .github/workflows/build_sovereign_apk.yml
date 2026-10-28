@@ -7,18 +7,48 @@ on:
       - "main.py"
       - "buildozer.spec"
       - "lightning_app_manifest.xml"
+      - ".github/workflows/build_sovereign_apk.yml"
 
 permissions:
   contents: write
 
 jobs:
   build-android-apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
 
     steps:
       - name: Checkout Repository & Trained JARVAIS Model
         uses: actions/checkout@v4
+
+      - name: Set up Python 3.10 for Buildozer
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Java JDK 17 (Required for Android SDK/Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install System Dependencies for Android APK Compilation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openapi-generator-cli autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
+            libffi-dev libssl-dev automake ccache lld libltdl-dev
+
+      - name: Cache Buildozer Android SDK & NDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: buildozer-android-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-android-
 
       - name: Reassemble Trained JARVAIS Model Shards for Packaging
         run: |
@@ -41,15 +71,17 @@ jobs:
           print("[⚡] Model shards prepared for APK packaging!")
           '
 
-      - name: Build Android APK with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: master
+      - name: Install Buildozer & Cython
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install "cython<3.0.0" buildozer virtualenv
+
+      - name: Compile Lightning Dude Sovereign APK
+        run: |
+          yes | buildozer android debug
 
       - name: Upload Ready-to-Install Lightning Dude APK
         uses: actions/upload-artifact@v4
         with:
           name: LightningDude-JARVAIS-Sovereign-APK
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
