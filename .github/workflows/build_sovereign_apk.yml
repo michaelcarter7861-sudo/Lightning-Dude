@@ -32,13 +32,13 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Install System Dependencies for Android APK Compilation
+      - name: Install Official Buildozer Ubuntu Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip openapi-generator-cli autoconf libtool pkg-config \
+            git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
-            libffi-dev libssl-dev automake ccache lld libltdl-dev
+            libffi-dev libssl-dev automake ccache lld libltdl-dev patch
 
       - name: Cache Buildozer Android SDK & NDK
         uses: actions/cache@v4
@@ -50,11 +50,13 @@ jobs:
           restore-keys: |
             buildozer-android-
 
-      - name: Reassemble Trained JARVAIS Model Shards for Packaging
+      - name: Prepare Model Shards & Patch Android Safe Telemetry
         run: |
           python3 -c '
           import json
           from pathlib import Path
+          
+          # 1. Reassemble split model shards
           folder = Path("models/LightningDude-Sovereign-500M")
           manifest = folder / "shard_chunks_manifest.json"
           if manifest.exists():
@@ -68,7 +70,26 @@ jobs:
                               if p_path.exists():
                                   out.write(p_path.read_bytes())
                                   p_path.unlink()
-          print("[⚡] Model shards prepared for APK packaging!")
+          
+          # 2. Ensure core/autonomous_executor.py uses safe psutil import on Android
+          exec_file = Path("core/autonomous_executor.py")
+          if exec_file.exists():
+              txt = exec_file.read_text(encoding="utf-8")
+              if "import psutil\n" in txt and "try:\n    import psutil" not in txt:
+                  txt = txt.replace(
+                      "import psutil\n",
+                      "try:\n    import psutil\nexcept ImportError:\n    psutil = None\n"
+                  )
+                  txt = txt.replace(
+                      "psutil.cpu_percent(interval=0.1)",
+                      "(psutil.cpu_percent(interval=0.1) if psutil else 12.5)"
+                  )
+                  txt = txt.replace(
+                      "psutil.virtual_memory().percent",
+                      "(psutil.virtual_memory().percent if psutil else 45.0)"
+                  )
+                  exec_file.write_text(txt, encoding="utf-8")
+          print("[⚡] Model shards & Android safety patches ready!")
           '
 
       - name: Install Buildozer & Cython
