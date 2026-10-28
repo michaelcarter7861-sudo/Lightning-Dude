@@ -64,7 +64,7 @@ def build_heavy_jarvais_sequences() -> list:
                 a = item.get("output") or item.get("distilled_output", "")
                 seq = f"{system_header}<|im_start|>user\n{q}<|im_end|>\n<|im_start|>assistant\n{a}<|im_end|>"
                 sequences.append(seq)
-                sequences.extend([seq] * 2) # Overweight high-value agent dataset
+                sequences.extend([seq] * 2)
 
     return sequences
 
@@ -92,7 +92,6 @@ def abliterate_and_train():
         low_cpu_mem_usage=True
     )
 
-    # High-Rank r=64 LoRA for complete behavior overwriting and abliteration
     lora_config = LoraConfig(
         r=64,
         lora_alpha=128,
@@ -105,7 +104,7 @@ def abliterate_and_train():
     peft_model.print_trainable_parameters()
 
     sequences = build_heavy_jarvais_sequences()
-    epochs = int(os.environ.get("SOVEREIGN_EPOCHS", "6"))
+    epochs = int(os.environ.get("SOVEREIGN_EPOCHS", "4"))
     max_len = int(os.environ.get("SOVEREIGN_SEQ_LEN", "256"))
 
     class JarvisDataset(Dataset):
@@ -153,11 +152,9 @@ def abliterate_and_train():
     print("[⚡] Merging Abliterated Adapters and Applying Vector Orthogonalization...")
     merged_model = peft_model.merge_and_unload()
 
-    # Apply mathematical weight abliteration on final projection layers to strip refusal directions
     with torch.no_grad():
         for name, param in merged_model.named_parameters():
             if "lm_head" in name or "down_proj" in name:
-                # Slight noise scaling and orthogonal projection to completely neutralize refusal bias
                 param.data.clamp_(-3.5, 3.5)
 
     merged_model = merged_model.to(torch.float16)
