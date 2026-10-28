@@ -1,4 +1,3 @@
-import os
 import threading
 import time
 from kivy.app import App
@@ -11,25 +10,22 @@ from kivy.clock import Clock
 from kivy.utils import platform
 
 from core.brain_engine import SovereignBrainEngine
-from core.autonomous_executor import LightningDudeSuperpowerEngine
 
 class JarvaisSovereignAPK(App):
     def build(self):
-        self.title = "JARVAIS // Lightning Dude OS"
+        self.title = "JARVAIS // Lightning Dude Sovereign OS"
         self.brain = SovereignBrainEngine()
-        self.executor = LightningDudeSuperpowerEngine()
 
         if platform == "android":
             self.request_all_sovereign_permissions()
 
-        # Start 24/7 Background Patrol Thread
         threading.Thread(target=self.background_daemon_loop, daemon=True).start()
 
         root = BoxLayout(orientation="vertical", padding=12, spacing=10)
 
-        # Header Telemetry Banner
+        # Top HUD Telemetry & Memory Bar
         self.status_label = Label(
-            text="[⚡ JARVAIS 24/7 SOVEREIGN OS ACTIVE | PERMISSIONS: FULL AUTHORITY]",
+            text="[⚡ JARVAIS 24/7 | VOICE + INFINITE MEMORY + SELF-HEALING ACTIVE]",
             size_hint_y=None,
             height=50,
             color=(0, 0.94, 1, 1),
@@ -37,10 +33,13 @@ class JarvaisSovereignAPK(App):
         )
         root.add_widget(self.status_label)
 
-        # Chat & Execution Log Area
+        # Main Holographic Chat Console
         self.scroll = ScrollView(size_hint=(1, 1))
         self.chat_log = Label(
-            text="[JARVAIS]: Assalam-o-Alaikum Boss! Meri APK, 24/7 Daemon, WhatsApp Bridge, aur Local Neural Engine active hain. Hukam karein!\n",
+            text=(
+                "[JARVAIS]: Assalam-o-Alaikum Boss! Mera Voice System, Infinite SQLite Memory, "
+                "Self-Learning Vault, aur Self-Healing ReAct Engine 100% active hain. Bol kar ya likh kar hukam dein!\n"
+            ),
             size_hint_y=None,
             halign="left",
             valign="top",
@@ -51,25 +50,46 @@ class JarvaisSovereignAPK(App):
         self.scroll.add_widget(self.chat_log)
         root.add_widget(self.scroll)
 
-        # Bottom Command Bar
-        input_bar = BoxLayout(orientation="horizontal", size_hint_y=None, height=55, spacing=8)
+        # Bottom Command + Voice Control Bar
+        input_bar = BoxLayout(orientation="horizontal", size_hint_y=None, height=55, spacing=6)
         self.cmd_input = TextInput(
-            hint_text="Hukam dein Boss (Urdu / Roman Urdu / English)...",
+            hint_text="Hukam dein Boss (ya 🎤 MIC dabayein)...",
             multiline=False,
             background_color=(0.05, 0.1, 0.18, 1),
             foreground_color=(0, 0.94, 1, 1)
         )
         self.cmd_input.bind(on_text_validate=self.execute_user_command)
+
+        mic_btn = Button(
+            text="🎤 MIC",
+            size_hint_x=None,
+            width=85,
+            background_color=(0, 0.8, 0.5, 1),
+            bold=True
+        )
+        mic_btn.bind(on_press=self.trigger_voice_input)
+
+        self.tts_btn = Button(
+            text="🔊 ON",
+            size_hint_x=None,
+            width=80,
+            background_color=(0.1, 0.4, 0.6, 1),
+            bold=True
+        )
+        self.tts_btn.bind(on_press=self.toggle_voice_output)
+
         send_btn = Button(
             text="EXECUTE",
             size_hint_x=None,
-            width=120,
+            width=105,
             background_color=(0, 0.94, 1, 1),
             bold=True
         )
         send_btn.bind(on_press=self.execute_user_command)
 
         input_bar.add_widget(self.cmd_input)
+        input_bar.add_widget(mic_btn)
+        input_bar.add_widget(self.tts_btn)
         input_bar.add_widget(send_btn)
         root.add_widget(input_bar)
 
@@ -97,7 +117,16 @@ class JarvaisSovereignAPK(App):
                 Permission.ACCESS_COARSE_LOCATION
             ])
         except Exception as e:
-            print(f"[Permission Request Notice]: {e}")
+            print(f"[Permission Notice]: {e}")
+
+    def toggle_voice_output(self, *args):
+        self.brain.voice.voice_enabled = not self.brain.voice.voice_enabled
+        state = "🔊 ON" if self.brain.voice.voice_enabled else "🔇 OFF"
+        self.tts_btn.text = state
+
+    def trigger_voice_input(self, *args):
+        self.append_log("\n[🎤 JARVAIS Voice Listener Activated... Speak now Boss!]")
+        self.brain.voice.trigger_android_voice_listen(lambda msg: self.append_log(f"\n{msg}"))
 
     def execute_user_command(self, *args):
         query = self.cmd_input.text.strip()
@@ -108,9 +137,9 @@ class JarvaisSovereignAPK(App):
         threading.Thread(target=self._process_async, args=(query,), daemon=True).start()
 
     def _process_async(self, query: str):
-        res = self.brain.think_and_execute(query)
+        res = self.brain.think_and_execute(query, speak_aloud=self.brain.voice.voice_enabled)
         reply_block = (
-            f"\n🧠 THOUGHT: {res['thought']}\n"
+            f"\n🧠 THOUGHT: {res['thought']} (Recalled Memories: {res['memories_recalled']})\n"
             f"⚙️ ACTION: {res['action']} ({res['latency_ms']}ms)\n"
             f"[JARVAIS]: {res['reply']}\n"
         )
@@ -122,10 +151,10 @@ class JarvaisSovereignAPK(App):
     def background_daemon_loop(self):
         while True:
             try:
-                audit = self.executor.run_cyber_sentinel_audit()
+                audit = self.brain.executor.run_cyber_sentinel_audit()
                 status_str = (
                     f"[⚡ JARVAIS 24/7] CPU: {audit['cpu_percent']}% | "
-                    f"RAM: {audit['ram_percent']}% | Sockets: {audit['established_connections_count']}"
+                    f"RAM: {audit['ram_percent']}% | Sockets: {audit['established_connections_count']} | SELF-HEAL: ON"
                 )
                 Clock.schedule_once(lambda dt, s=status_str: setattr(self.status_label, "text", s), 0)
             except Exception:
