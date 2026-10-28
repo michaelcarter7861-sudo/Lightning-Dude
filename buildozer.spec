@@ -1,0 +1,22 @@
+[app]
+title = Lightning Dude JARVAIS
+package.name = lightningdude
+package.domain = com.jarvais
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,json,safetensors,ldbrain,xml
+source.exclude_dirs = .git,__pycache__,tests
+version = 1.0.0
+requirements = python3,kivy,psutil,requests
+orientation = portrait
+fullscreen = 0
+android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,CHANGE_WIFI_STATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE,READ_CONTACTS,WRITE_CONTACTS,READ_CALL_LOG,WRITE_CALL_LOG,READ_PHONE_STATE,CALL_PHONE,READ_SMS,SEND_SMS,RECEIVE_SMS,BIND_NOTIFICATION_LISTENER_SERVICE,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,BIND_ACCESSIBILITY_SERVICE,QUERY_ALL_PACKAGES,RECORD_AUDIO,CAMERA,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,WAKE_LOCK,FOREGROUND_SERVICE,RECEIVE_BOOT_COMPLETED,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+android.api = 33
+android.minapi = 24
+android.ndk = 25b
+android.accept_sdk_license = True
+android.archs = arm64-v8a
+p4a.branch = master
+
+[buildozer]
+log_level = 2
+warn_on_root = 0
