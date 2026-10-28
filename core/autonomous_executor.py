@@ -3,7 +3,7 @@ import re
 import sys
 import subprocess
 import tempfile
-import psutil
+import psutil / except ImportError: psutil = None
 from pathlib import Path
 from typing import Dict, Any
 
