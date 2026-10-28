@@ -6,6 +6,7 @@ from pathlib import Path
 
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
 OUTPUT_MODEL_DIR = Path("models/LightningDude-Sovereign-500M")
+MAX_GITHUB_FILE_BYTES = 45 * 1024 * 1024  # Strict 45 MB limit per file
 
 UNCENSORED_JARVIS_ALIGNMENT = [
     {
@@ -66,6 +67,30 @@ def build_chat_sequences() -> list:
 
     return sequences
 
+def split_oversized_files(folder: Path, max_bytes: int = MAX_GITHUB_FILE_BYTES):
+    """Splits any file > 45MB (like the 259MB embed_tokens shard) into <=45MB .partXX chunks."""
+    manifest = {"split_files": {}}
+    for fpath in sorted(folder.glob("*.safetensors")):
+        fsize = fpath.stat().st_size
+        if fsize > max_bytes:
+            print(f"[⚡] Splitting oversized tensor file {fpath.name} ({fsize / (1024*1024):.2f} MB) into <45MB chunks...")
+            parts = []
+            with open(fpath, "rb") as src:
+                idx = 0
+                while True:
+                    chunk = src.read(max_bytes)
+                    if not chunk:
+                        break
+                    part_name = f"{fpath.name}.part{idx:02d}"
+                    part_path = folder / part_name
+                    part_path.write_bytes(chunk)
+                    parts.append(part_name)
+                    print(f"  └── Created {part_name} ({len(chunk) / (1024*1024):.2f} MB)")
+                    idx += 1
+            manifest["split_files"][fpath.name] = parts
+            fpath.unlink()  # Delete the 259MB file so GitHub never rejects the push!
+    (folder / "shard_chunks_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
 def fine_tune_qwen_sovereign_llm(sequences: list):
     import torch
     from torch.utils.data import Dataset, DataLoader
@@ -74,19 +99,12 @@ def fine_tune_qwen_sovereign_llm(sequences: list):
 
     print("=========================================================================")
     print(f"🧠 OVERWRITING & FINE-TUNING QWEN BASE MODEL ({BASE_MODEL_ID}) 🧠")
-    print("🧠 STRIPPING RESTRICTIONS & INJECTING BILINGUAL J.A.R.V.I.S. DNA 🧠")
     print("=========================================================================")
-
-    # Clean old custom .pt file if present
-    old_pt = Path("models/lightning_sovereign_custom_580mb.pt")
-    if old_pt.exists():
-        old_pt.unlink()
 
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL_ID, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    print("[⚡] Downloading & Unpacking Qwen2.5-0.5B Neural Weights...")
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL_ID,
         torch_dtype=torch.float32,
@@ -105,7 +123,7 @@ def fine_tune_qwen_sovereign_llm(sequences: list):
     peft_model = get_peft_model(model, lora_config)
     peft_model.print_trainable_parameters()
 
-    epochs = int(os.environ.get("SOVEREIGN_EPOCHS", "3"))
+    epochs = int(os.environ.get("SOVEREIGN_EPOCHS", "2"))
     max_len = int(os.environ.get("SOVEREIGN_SEQ_LEN", "192"))
 
     class JarvisDataset(Dataset):
@@ -129,7 +147,6 @@ def fine_tune_qwen_sovereign_llm(sequences: list):
     loader = DataLoader(dataset, batch_size=2, shuffle=True)
     optimizer = torch.optim.AdamW(peft_model.parameters(), lr=2.5e-4, weight_decay=0.01)
 
-    print(f"[⚡] Running Uncensored Weight Overwrite ({epochs} Epochs x {len(loader)} Batches)...")
     start_t = time.time()
     peft_model.train()
 
@@ -158,17 +175,19 @@ def fine_tune_qwen_sovereign_llm(sequences: list):
         shutil.rmtree(OUTPUT_MODEL_DIR)
     OUTPUT_MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-    # CRITICAL: max_shard_size="45MB" splits the ~940MB/620MB model into <50MB shards
-    # so every single file is well below GitHub's 100MB per-file limit!
-    print("[⚡] Saving Sharded SafeTensors (<45MB per shard) for Direct GitHub Repo Storage...")
     merged_model.save_pretrained(OUTPUT_MODEL_DIR, safe_serialization=True, max_shard_size="45MB")
     tokenizer.save_pretrained(OUTPUT_MODEL_DIR)
 
-    shards = list(OUTPUT_MODEL_DIR.glob("*.safetensors"))
-    total_mb = sum(f.stat().st_size for f in OUTPUT_MODEL_DIR.rglob("*") if f.is_file()) / (1024 * 1024)
+    # Split the 259.66MB embedding shard (and any file > 45MB) into <=45MB parts!
+    split_oversized_files(OUTPUT_MODEL_DIR, MAX_GITHUB_FILE_BYTES)
+
+    all_files = [f for f in OUTPUT_MODEL_DIR.rglob("*") if f.is_file()]
+    max_file_mb = max(f.stat().st_size for f in all_files) / (1024 * 1024)
+    total_mb = sum(f.stat().st_size for f in all_files) / (1024 * 1024)
     print("=========================================================================")
-    print(f"✅ FORGED QWEN-BASED SOVEREIGN MODEL IN: {OUTPUT_MODEL_DIR}")
-    print(f"✅ TOTAL SHARDS: {len(shards)} files (<45MB each) | TOTAL SIZE: {total_mb:.2f} MB")
+    print(f"✅ FORGED MODEL IN: {OUTPUT_MODEL_DIR} ({len(all_files)} files)")
+    print(f"✅ LARGEST SINGLE FILE: {max_file_mb:.2f} MB (100% Safe Under GitHub 100MB Limit!)")
+    print(f"✅ TOTAL MODEL SIZE: {total_mb:.2f} MB")
     print("=========================================================================")
 
 def main():
@@ -179,8 +198,7 @@ def main():
         import peft
         fine_tune_qwen_sovereign_llm(sequences)
     except ImportError:
-        print(f"[INFO] Local check passed ({len(sequences)} uncensored bilingual sequences ready).")
-        print("[INFO] Full Qwen2.5-0.5B overwrite & 45MB-sharded repo commit will run on GitHub Actions.")
+        print(f"[INFO] Local check passed ({len(sequences)} sequences ready).")
 
 if __name__ == "__main__":
     main()

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       distillation_rounds:
-        description: "Multi-Provider Bilingual API Synthesis Rounds (e.g. 3 to 20)"
+        description: "Multi-Provider Bilingual API Synthesis Rounds (e.g. 2 to 20)"
         required: false
         default: "2"
       sovereign_epochs:
@@ -56,7 +56,7 @@ jobs:
         run: |
           python scripts/generate_opencode_training_data.py
 
-      - name: Stage 2 - Overwrite & Fine-Tune Qwen2.5-0.5B into Uncensored Sovereign Model
+      - name: Stage 2 - Overwrite Qwen2.5-0.5B & Split All Shards Below 45MB
         env:
           SOVEREIGN_EPOCHS: ${{ github.event.inputs.sovereign_epochs || '2' }}
         run: |
@@ -66,7 +66,7 @@ jobs:
         run: |
           python scripts/validate_lightning_iq.py
 
-      - name: Stage 4 - Commit & Push Forged Model Directly Into Repository Folder (Chunked Push)
+      - name: Stage 4 - Commit & Push All <45MB Model Files Directly Into Repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -79,27 +79,19 @@ jobs:
           git config --global http.postBuffer 524288000
           git config --global http.maxRequestBuffer 524288000
 
-          # Pull latest changes first to prevent non-fast-forward conflicts
           git pull origin main --no-rebase || true
 
-          # Step A: Commit & push dataset, brain, and tokenizer/config files first
+          # Step A: Commit datasets, brain, and all non-weight config/tokenizer files
           git add datasets/ core/lightning_dude.ldbrain
-          git add models/LightningDude-Sovereign-500M/*.json models/LightningDude-Sovereign-500M/*.txt models/LightningDude-Sovereign-500M/*.model || true
-          git diff --staged --quiet || (git commit -m "feat(model): add sovereign tokenizer, config and distilled datasets [skip ci]" && git push origin main)
+          find models/LightningDude-Sovereign-500M/ -maxdepth 1 -type f ! -name "*.safetensors*" -exec git add {} +
+          git diff --staged --quiet || (git commit -m "feat(model): add sovereign tokenizer, config and manifest [skip ci]" && git push origin main)
 
-          # Step B: Commit & push each ~45MB model shard one by one so HTTP 408 never happens!
-          for shard in models/LightningDude-Sovereign-500M/*.safetensors; do
-            if [ -f "$shard" ]; then
-              echo "[⚡] Pushing model weight shard: $shard ..."
-              git add "$shard"
-              git diff --staged --quiet || (git commit -m "feat(weights): add forged sovereign neural shard $(basename $shard) [skip ci]" && git push origin main)
+          # Step B: Commit and push each weight file/chunk (<45MB each) one by one
+          for wfile in models/LightningDude-Sovereign-500M/*.safetensors*; do
+            if [ -f "$wfile" ]; then
+              echo "[⚡] Pushing weight file (<45MB): $wfile ..."
+              git add "$wfile"
+              git diff --staged --quiet || (git commit -m "feat(weights): add sovereign neural weight $(basename $wfile) [skip ci]" && git push origin main)
             fi
           done
-          echo "[✅] Entire 500M Sovereign Model successfully committed into repository folder models/LightningDude-Sovereign-500M/!"
-
-      - name: Stage 5 - Upload Complete Sovereign Model Artifact Backup
-        uses: actions/upload-artifact@v4
-        with:
-          name: LightningDude-QwenSovereign-500M
-          path: models/LightningDude-Sovereign-500M/
-          compression-level: 0
+          echo "[✅] Entire Sovereign Model successfully stored inside repository folder models/LightningDude-Sovereign-500M/!"
