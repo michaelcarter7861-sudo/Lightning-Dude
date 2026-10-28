@@ -1,0 +1,55 @@
+name: Build Lightning Dude Sovereign APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "main.py"
+      - "buildozer.spec"
+      - "lightning_app_manifest.xml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout Repository & Trained JARVAIS Model
+        uses: actions/checkout@v4
+
+      - name: Reassemble Trained JARVAIS Model Shards for Packaging
+        run: |
+          python3 -c '
+          import json
+          from pathlib import Path
+          folder = Path("models/LightningDude-Sovereign-500M")
+          manifest = folder / "shard_chunks_manifest.json"
+          if manifest.exists():
+              data = json.loads(manifest.read_text())
+              for orig, parts in data.get("split_files", {}).items():
+                  target = folder / orig
+                  if not target.exists():
+                      with open(target, "wb") as out:
+                          for p in parts:
+                              p_path = folder / p
+                              if p_path.exists():
+                                  out.write(p_path.read_bytes())
+                                  p_path.unlink()
+          print("[⚡] Model shards prepared for APK packaging!")
+          '
+
+      - name: Build Android APK with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: master
+
+      - name: Upload Ready-to-Install Lightning Dude APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightningDude-JARVAIS-Sovereign-APK
+          path: ${{ steps.buildozer.outputs.filename }}
