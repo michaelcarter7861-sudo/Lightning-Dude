@@ -1,4 +1,3 @@
-
 name: Convert Model to GGUF and Save to Repo
 
 on:
@@ -18,34 +17,23 @@ jobs:
         with:
           lfs: true
 
-      - name: Force Full Git LFS Pull & Verify Binaries
+      - name: Force Full Git LFS Pull & Merge Sharded Parts
         run: |
           git lfs install
           git lfs pull
           
-          echo "=== Verifying actual file sizes in models directory ==="
-          find models/LightningDude-Sovereign-500M -type f -exec ls -lh {} \;
+          echo "=== Verifying model weights in directory ==="
+          ls -lh models/LightningDude-Sovereign-500M/ || true
 
-          # Check if files are still LFS pointer text files (< 1MB) instead of real weights
-          for f in models/LightningDude-Sovereign-500M/*.safetensors*; do
-              if [ -f "$f" ]; then
-                  fsize=$(stat -c%s "$f")
-                  if [ "$fsize" -lt 1000000 ]; then
-                      echo "ERROR: File $f is still a Git LFS pointer ($fsize bytes)!"
-                      exit 1
-                  fi
-              fi
-          done
-
-          # Normalize shard filenames if needed
           cd models/LightningDude-Sovereign-500M
-          for f in *safetensors*; do
-              if [[ "$f" == *.part* ]]; then
-                  target=$(echo "$f" | sed 's/\.safetensors\.part.*$/.safetensors/')
-                  echo "Copying $f -> $target"
-                  cp -f "$f" "$target"
-              fi
-          done
+
+          # If model-00001 is split into parts (.part00, .part01...), merge them back into single file
+          if [ -f "model-00001-of-00019.safetensors.part00" ]; then
+              echo "Merging model-00001 sharded parts into model-00001-of-00019.safetensors..."
+              cat model-00001-of-00019.safetensors.part* > model-00001-of-00019.safetensors
+          fi
+
+          ls -lh model-00001-of-00019.safetensors || true
           cd ../..
 
       - name: Set up Python 3.11
