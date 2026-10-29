@@ -6,16 +6,18 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,json,safetensors,ldbrain,xml,db
 source.exclude_dirs = .git,__pycache__,tests,.github
 version = 1.0.0
-requirements = python3,kivy,pyjnius,requests,urllib3,chardet,idna,certifi
+requirements = python3==3.11.6,hostpython3==3.11.6,kivy==2.3.0,pyjnius==1.6.1,requests,urllib3,chardet,idna,certifi
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,CHANGE_WIFI_STATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE,READ_CONTACTS,WRITE_CONTACTS,READ_CALL_LOG,WRITE_CALL_LOG,READ_PHONE_STATE,CALL_PHONE,READ_SMS,SEND_SMS,RECEIVE_SMS,BIND_NOTIFICATION_LISTENER_SERVICE,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,BIND_ACCESSIBILITY_SERVICE,QUERY_ALL_PACKAGES,RECORD_AUDIO,CAMERA,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,WAKE_LOCK,FOREGROUND_SERVICE,RECEIVE_BOOT_COMPLETED,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
 android.api = 33
 android.minapi = 24
 android.ndk = 25b
+android.ndk_api = 24
+android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4
 android.accept_sdk_license = True
 android.archs = arm64-v8a
-p4a.branch = master
+p4a.branch = release-2024.01.21
 
 [buildozer]
 log_level = 2
