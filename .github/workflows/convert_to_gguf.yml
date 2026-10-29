@@ -33,6 +33,11 @@ jobs:
               cat model-00001-of-00019.safetensors.part* > model-00001-of-00019.safetensors
           fi
 
+          # Ensure vocab/tokenizer mapping exists for conversion script
+          if [ -f "tokenizer.json" ] && [ ! -f "vocab.json" ]; then
+              cp tokenizer.json vocab.json
+          fi
+
           ls -lh model-00001-of-00019.safetensors || true
           cd ../..
 
