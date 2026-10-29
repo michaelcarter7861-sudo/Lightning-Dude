@@ -17,7 +17,7 @@ jobs:
         with:
           lfs: true
 
-      - name: Force Full Git LFS Pull & Merge Sharded Parts
+      - name: Force Full Git LFS Pull & Fix Tokenizer Config
         run: |
           git lfs install
           git lfs pull
@@ -33,37 +33,37 @@ jobs:
               cat model-00001-of-00019.safetensors.part* > model-00001-of-00019.safetensors
           fi
 
-          # 2. Fix invalid integer/list formats in tokenizer_config.json & generation_config.json
+          # 2. Completely sanitize tokenizer_config.json to remove integer-valued special tokens
           python3 -c '
           import json
           from pathlib import Path
 
-          for fname in ["tokenizer_config.json", "generation_config.json"]:
-              fpath = Path(fname)
-              if fpath.exists():
-                  try:
-                      data = json.loads(fpath.read_text(encoding="utf-8"))
-                      
-                      # Fix extra_special_tokens or chat template tokens if they are ints
-                      for key in ["extra_special_tokens", "bos_token", "eos_token", "pad_token", "im_start", "im_end"]:
-                          if key in data:
-                              val = data[key]
-                              if isinstance(val, list):
-                                  data[key] = {str(item): i for i, item in enumerate(val)}
-                              elif isinstance(val, int):
-                                  # If token is stored as ID integer, convert or remove to let tokenizer re-infer
-                                  del data[key]
-                      
-                      # Also check added_tokens_decoder if present
-                      if "added_tokens_decoder" in data:
-                          for tid, tinfo in list(data["added_tokens_decoder"].items()):
-                              if isinstance(tinfo, dict) and "content" in tinfo and isinstance(tinfo["content"], int):
-                                  tinfo["content"] = str(tinfo["content"])
+          cfg_path = Path("tokenizer_config.json")
+          if cfg_path.exists():
+              try:
+                  data = json.loads(cfg_path.read_text(encoding="utf-8"))
+                  
+                  # Remove or fix extra_special_tokens if it maps token strings to integer IDs
+                  if "extra_special_tokens" in data:
+                      est = data["extra_special_tokens"]
+                      if isinstance(est, dict):
+                          new_est = {k: v for k, v in est.items() if not isinstance(v, int)}
+                          if new_est:
+                              data["extra_special_tokens"] = new_est
+                          else:
+                              del data["extra_special_tokens"]
+                      else:
+                          del data["extra_special_tokens"]
 
-                      fpath.write_text(json.dumps(data, indent=2), encoding="utf-8")
-                      print(f"[⚡] Successfully sanitized {fname}!")
-                  except Exception as e:
-                      print(f"Sanitization warning for {fname}: {e}")
+                  # Clean any top-level integer token values
+                  for key in list(data.keys()):
+                      if isinstance(data[key], int) and any(t in key.lower() for t in ["token", "im_start", "im_end"]):
+                          del data[key]
+
+                  cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                  print("[⚡] tokenizer_config.json completely sanitized and fixed!")
+              except Exception as e:
+                  print(f"Sanitization error: {e}")
           '
 
           ls -lh model-00001-of-00019.safetensors || true
