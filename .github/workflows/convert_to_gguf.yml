@@ -1,3 +1,4 @@
+
 name: Convert Model to GGUF and Save to Repo
 
 on:
@@ -17,22 +18,34 @@ jobs:
         with:
           lfs: true
 
-      - name: Force Full Git LFS Pull & Normalize Shard Filenames
+      - name: Force Full Git LFS Pull & Verify Binaries
         run: |
+          git lfs install
           git lfs pull
-          echo "=== Inspecting model directory ==="
-          ls -lh models/LightningDude-Sovereign-500M/ || true
+          
+          echo "=== Verifying actual file sizes in models directory ==="
+          find models/LightningDude-Sovereign-500M -type f -exec ls -lh {} \;
 
-          # Normalizing sharded or part files to match safetensors expected by index
+          # Check if files are still LFS pointer text files (< 1MB) instead of real weights
+          for f in models/LightningDude-Sovereign-500M/*.safetensors*; do
+              if [ -f "$f" ]; then
+                  fsize=$(stat -c%s "$f")
+                  if [ "$fsize" -lt 1000000 ]; then
+                      echo "ERROR: File $f is still a Git LFS pointer ($fsize bytes)!"
+                      exit 1
+                  fi
+              fi
+          done
+
+          # Normalize shard filenames if needed
           cd models/LightningDude-Sovereign-500M
           for f in *safetensors*; do
               if [[ "$f" == *.part* ]]; then
                   target=$(echo "$f" | sed 's/\.safetensors\.part.*$/.safetensors/')
-                  echo "Linking/Copying $f -> $target"
+                  echo "Copying $f -> $target"
                   cp -f "$f" "$target"
               fi
           done
-          ls -lh || true
           cd ../..
 
       - name: Set up Python 3.11
