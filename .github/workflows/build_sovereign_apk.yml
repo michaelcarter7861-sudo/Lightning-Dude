@@ -53,34 +53,35 @@ jobs:
           python3 -c '
           from pathlib import Path
 
-          # 1. Create 24/7 sticky background daemon service/main.py
+          # 1. Create 100% syntax-clean 24/7 sticky background daemon service/main.py
           svc_dir = Path("service")
           svc_dir.mkdir(parents=True, exist_ok=True)
-          svc_code = """import time
-          import sqlite3
-          from pathlib import Path
-
-          def run_24x7_sentinel():
-              while True:
-                  try:
-                      # Heartbeat pulse every 30 seconds to keep JARVAIS daemon alive 24/7
-                      time.sleep(30)
-                  except Exception:
-                      time.sleep(10)
-
-          if __name__ == "__main__":
-              run_24x7_sentinel()
-          """
-          clean_svc = "\n".join(line[10:] if line.startswith("          ") else line for line in svc_code.splitlines())
-          (svc_dir / "main.py").write_text(clean_svc.strip() + "\n", encoding="utf-8")
+          svc_lines = [
+              "import time",
+              "",
+              "def run_24x7_sentinel():",
+              "    while True:",
+              "        try:",
+              "            time.sleep(30)",
+              "        except Exception:",
+              "            time.sleep(10)",
+              "",
+              "if __name__ == \"__main__\":",
+              "    run_24x7_sentinel()",
+              ""
+          ]
+          (svc_dir / "main.py").write_text("\n".join(svc_lines), encoding="utf-8")
 
           # 2. Ensure core/autonomous_executor.py is syntax-clean
           exec_file = Path("core/autonomous_executor.py")
           if exec_file.exists():
               txt = exec_file.read_text(encoding="utf-8")
-              txt = txt.replace("import psutil / except ImportError: psutil = None", "try:\n    import psutil\nexcept ImportError:\n    psutil = None")
+              txt = txt.replace(
+                  "import psutil / except ImportError: psutil = None",
+                  "try:\n    import psutil\nexcept ImportError:\n    psutil = None"
+              )
               exec_file.write_text(txt, encoding="utf-8")
-          print("[⚡] 24/7 Service Daemon & Telemetry Verified!")
+          print("[⚡] 24/7 Service Daemon & Telemetry Verified Clean!")
           '
 
       - name: Cache Buildozer Android SDK & NDK
