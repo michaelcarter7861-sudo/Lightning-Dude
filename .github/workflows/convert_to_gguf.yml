@@ -1,4 +1,4 @@
-name: Convert Model to GGUF & Save to Repo
+name: Convert Model to GGUF and Save to Repo
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  convert-and-push:
+  convert-and-push-gguf:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
 
@@ -16,17 +16,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Force Full Git LFS Pull & Verify Files
+        run: |
+          git lfs pull
+          echo "=== Listing models directory ==="
+          ls -lh models/LightningDude-Sovereign-500M/ || true
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Configure Git Identity
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Clone llama.cpp & Install Conversion Dependencies
         run: |
@@ -44,9 +44,16 @@ jobs:
 
           ls -lh models/
 
-      - name: Commit and Push GGUF File to Repository
+      - name: Commit & Push GGUF Model to Repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git status
-          git add models/LightningDude-Sovereign-500M.gguf
-          git commit -m "Auto-convert LightningDude-Sovereign-500M to GGUF format [skip ci]" || echo "No changes to commit"
-          git push
+          git config --global user.name "Lightning Dude Autonomous Builder"
+          git config --global user.email "builder@jarvais.internal"
+          
+          mkdir -p models/gguf
+          cp models/LightningDude-Sovereign-500M.gguf models/gguf/
+          
+          git add models/gguf/LightningDude-Sovereign-500M.gguf
+          git commit -m "⚡ Auto-converted GGUF Sovereign Model saved by GitHub Actions" || echo "No changes to commit"
+          git push origin main
