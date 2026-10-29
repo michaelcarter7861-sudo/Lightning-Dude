@@ -29,7 +29,6 @@ jobs:
           ls -lh main.py service.py buildozer.spec
           ls -lh models/gguf/LightningDude-Sovereign-500M.gguf
 
-          # Ensure GGUF is real binary (> 100MB) and not an LFS pointer
           fsize=$(stat -c%s "models/gguf/LightningDude-Sovereign-500M.gguf")
           if [ "$fsize" -lt 100000000 ]; then
             echo "ERROR: GGUF file is too small ($fsize bytes). LFS pull failed!"
@@ -43,7 +42,8 @@ jobs:
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk python3-pip autoconf libtool \
             pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev automake ccache
+            libtinfo5 cmake libffi-dev libssl-dev automake ccache \
+            libltdl-dev patch
 
       - name: Set up Python 3.11 & Buildozer
         uses: actions/setup-python@v5
@@ -52,19 +52,22 @@ jobs:
 
       - name: Install Buildozer & Cython
         run: |
-          pip install --upgrade pip
+          pip install --upgrade pip "setuptools<70.0.0" wheel
           pip install buildozer==1.5.0 cython==0.29.36 virtualenv
 
-      - name: Cache Buildozer Android SDK/NDK
+      - name: Cache Buildozer Android SDK/NDK (Clean Py3.11 Key)
         uses: actions/cache@v4
         with:
           path: |
-            .buildozer
             ~/.buildozer
-          key: buildozer-gguf-${{ runner.os }}-v2
+          key: buildozer-sdk-ndk-py311-${{ runner.os }}-v3
 
       - name: Compile Sovereign APK with GGUF Asset
+        env:
+          CFLAGS: "-Wno-error -Wno-deprecated-declarations -Wno-incompatible-function-pointer-types"
         run: |
+          # Clean any leftover broken .buildozer folder in workspace before building
+          rm -rf .buildozer
           yes | buildozer android debug
           ls -lh bin/
 
