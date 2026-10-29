@@ -1,0 +1,52 @@
+name: Convert Model to GGUF & Save to Repo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert-and-push:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Repository with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone llama.cpp & Install Conversion Dependencies
+        run: |
+          git clone https://github.com/ggerganov/llama.cpp.git
+          cd llama.cpp
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install torch transformers sentencepiece protobuf safetensors
+
+      - name: Convert LightningDude-Sovereign-500M to GGUF
+        run: |
+          python3 llama.cpp/convert_hf_to_gguf.py models/LightningDude-Sovereign-500M \
+            --outfile models/LightningDude-Sovereign-500M.gguf \
+            --outtype q8_0
+
+          ls -lh models/
+
+      - name: Commit and Push GGUF File to Repository
+        run: |
+          git status
+          git add models/LightningDude-Sovereign-500M.gguf
+          git commit -m "Auto-convert LightningDude-Sovereign-500M to GGUF format [skip ci]" || echo "No changes to commit"
+          git push
