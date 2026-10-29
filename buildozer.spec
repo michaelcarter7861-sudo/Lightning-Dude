@@ -3,9 +3,10 @@ title = Lightning Dude JARVAIS
 package.name = lightningdude
 package.domain = com.jarvais
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,json,ldbrain,xml,db
+source.include_exts = py,png,jpg,kv,atlas,json,ldbrain,xml,db,txt
 source.exclude_dirs = .git,__pycache__,tests,.github,models
-version = 2.0.0
+android.add_assets = models/LightningDude-Sovereign-500M:models/LightningDude-Sovereign-500M,knowledge_vault:knowledge_vault
+version = 2.2.0
 requirements = python3==3.11.6,hostpython3==3.11.6,kivy==2.3.0,pyjnius==1.6.1,requests,urllib3,chardet,idna,certifi
 services = Jarvaisdaemon:service/main.py:sticky
 orientation = portrait
