@@ -18,8 +18,17 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository (With Git LFS)
         uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify LightningDude-Sovereign-500M Model Files
+        run: |
+          mkdir -p models/LightningDude-Sovereign-500M knowledge_vault
+          echo "=== Checking models/LightningDude-Sovereign-500M contents ==="
+          ls -lh models/LightningDude-Sovereign-500M/ || true
+          du -sh models/LightningDude-Sovereign-500M/ || true
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -40,11 +49,12 @@ jobs:
 
           sudo apt-get update
           sudo apt-get install -y \
-            ant build-essential git zip unzip autoconf libtool pkg-config \
+            ant git-lfs build-essential git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev automake ccache lld libltdl-dev patch \
             libsqlite3-dev bzip2 libbz2-dev liblzma-dev uuid-dev
 
+          git lfs pull || true
           mkdir -p /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin
           ln -sf /usr/bin/ant /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin/ant
 
@@ -53,7 +63,6 @@ jobs:
           python3 -c '
           from pathlib import Path
 
-          # 1. Create 100% syntax-clean 24/7 sticky background daemon service/main.py
           svc_dir = Path("service")
           svc_dir.mkdir(parents=True, exist_ok=True)
           svc_lines = [
@@ -72,7 +81,6 @@ jobs:
           ]
           (svc_dir / "main.py").write_text("\n".join(svc_lines), encoding="utf-8")
 
-          # 2. Ensure core/autonomous_executor.py is syntax-clean
           exec_file = Path("core/autonomous_executor.py")
           if exec_file.exists():
               txt = exec_file.read_text(encoding="utf-8")
@@ -90,8 +98,9 @@ jobs:
           path: |
             ~/.buildozer
             .buildozer
-          key: buildozer-jarvais-hud-v2-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-jarvais-500m-assets-v3-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
+            buildozer-jarvais-hud-v2-
             buildozer-
 
       - name: Lock Cython 0.29.36 Globally & Install Buildozer
@@ -105,17 +114,18 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install Cython==0.29.36 "setuptools<70.0.0" wheel buildozer virtualenv
 
-      - name: Compile Lightning Dude Sovereign APK
+      - name: Compile Lightning Dude Sovereign APK (With 500M Assets)
         env:
           PIP_CONSTRAINT: /tmp/pip_constraints.txt
-          GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false -Djava.net.preferIPv4Stack=true"
+          GRADLE_OPTS: "-Xmx6144m -Dorg.gradle.daemon=false -Djava.net.preferIPv4Stack=true"
         run: |
           mkdir -p /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin
           ln -sf /usr/bin/ant /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin/ant
           yes | buildozer android debug
+          ls -lh bin/*.apk
 
       - name: Upload Ready-to-Install Lightning Dude APK
         uses: actions/upload-artifact@v4
         with:
-          name: LightningDude-JARVAIS-Sovereign-v2-APK
+          name: LightningDude-JARVAIS-500M-Bundled-APK
           path: bin/*.apk
