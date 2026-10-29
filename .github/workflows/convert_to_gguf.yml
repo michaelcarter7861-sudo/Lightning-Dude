@@ -17,11 +17,23 @@ jobs:
         with:
           lfs: true
 
-      - name: Force Full Git LFS Pull & Verify Files
+      - name: Force Full Git LFS Pull & Normalize Shard Filenames
         run: |
           git lfs pull
-          echo "=== Listing models directory ==="
+          echo "=== Inspecting model directory ==="
           ls -lh models/LightningDude-Sovereign-500M/ || true
+
+          # Normalizing sharded or part files to match safetensors expected by index
+          cd models/LightningDude-Sovereign-500M
+          for f in *safetensors*; do
+              if [[ "$f" == *.part* ]]; then
+                  target=$(echo "$f" | sed 's/\.safetensors\.part.*$/.safetensors/')
+                  echo "Linking/Copying $f -> $target"
+                  cp -f "$f" "$target"
+              fi
+          done
+          ls -lh || true
+          cd ../..
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
