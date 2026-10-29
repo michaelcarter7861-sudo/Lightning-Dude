@@ -1,25 +1,37 @@
 [app]
-title = Lightning Dude JARVAIS
+title = Lightning Dude
 package.name = lightningdude
-package.domain = com.jarvais
+package.domain = org.jarvais
+
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,json,ldbrain,xml,db,txt
-source.exclude_dirs = .git,__pycache__,tests,.github,models
-android.add_assets = models/LightningDude-Sovereign-500M:models/LightningDude-Sovereign-500M,knowledge_vault:knowledge_vault
-version = 2.2.0
-requirements = python3==3.11.6,hostpython3==3.11.6,kivy==2.3.0,pyjnius==1.6.1,requests,urllib3,chardet,idna,certifi
-services = Jarvaisdaemon:service/main.py:sticky
+source.include_exts = py,png,jpg,kv,atlas,json,jinja
+
+# Purane heavy safetensors shards ko exclude kar diya hai taake private.mp3 crash na ho
+source.exclude_dirs = tests, bin, .git, .github, llama.cpp, models/LightningDude-Sovereign-500M
+source.exclude_exts = safetensors, part00, part01, part02, part03, part04, part05
+
+version = 2.0.0
+requirements = python3,kivy==2.3.0,pyjnius,android
+
 orientation = portrait
 fullscreen = 0
-android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,CHANGE_WIFI_STATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE,READ_CONTACTS,WRITE_CONTACTS,READ_CALL_LOG,WRITE_CALL_LOG,READ_PHONE_STATE,CALL_PHONE,ANSWER_PHONE_CALLS,READ_SMS,SEND_SMS,RECEIVE_SMS,BIND_NOTIFICATION_LISTENER_SERVICE,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,BIND_ACCESSIBILITY_SERVICE,BIND_DEVICE_ADMIN,QUERY_ALL_PACKAGES,RECORD_AUDIO,CAMERA,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,ACCESS_BACKGROUND_LOCATION,WAKE_LOCK,FOREGROUND_SERVICE,RECEIVE_BOOT_COMPLETED,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,POST_NOTIFICATIONS,VIBRATE
+android.presplash_color = #050D14
+
+# 24/7 Background Service Integration (Points directly to root service.py)
+services = Jarvais:service.py:foreground
+
+# GGUF Model Direct Integration inside APK Assets (No unpacking crash!)
+android.add_assets = models/gguf/LightningDude-Sovereign-500M.gguf
+
+# Full Device Authorities + Floating Orb Overlay + Background Service Permissions
+android.permissions = INTERNET,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,SYSTEM_ALERT_WINDOW,VIBRATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
+
 android.api = 33
 android.minapi = 24
 android.ndk = 25b
-android.ndk_api = 24
-android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4
-android.accept_sdk_license = True
 android.archs = arm64-v8a
-p4a.branch = release-2024.01.21
+android.allow_backup = True
+p4a.branch = master
 
 [buildozer]
 log_level = 2
