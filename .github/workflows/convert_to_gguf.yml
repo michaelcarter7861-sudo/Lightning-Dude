@@ -42,7 +42,6 @@ jobs:
               try:
                   data = json.loads(cfg_path.read_text(encoding="utf-8"))
                   if "extra_special_tokens" in data and isinstance(data["extra_special_tokens"], list):
-                      # Convert list to dict if needed by transformers
                       data["extra_special_tokens"] = {str(item): i for i, item in enumerate(data["extra_special_tokens"])}
                       cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
                       print("[⚡] Fixed tokenizer_config.json extra_special_tokens format!")
@@ -70,8 +69,7 @@ jobs:
         run: |
           python3 llama.cpp/convert_hf_to_gguf.py models/LightningDude-Sovereign-500M \
             --outfile models/LightningDude-Sovereign-500M.gguf \
-            --outtype q8_0 \
-            --vocab-type hf
+            --outtype q8_0
 
           ls -lh models/
 
