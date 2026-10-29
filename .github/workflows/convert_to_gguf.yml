@@ -17,7 +17,7 @@ jobs:
         with:
           lfs: true
 
-      - name: Force Full Git LFS Pull & Fix Tokenizer Config
+      - name: Force Full Git LFS Pull & Fix Configs
         run: |
           git lfs install
           git lfs pull
@@ -43,7 +43,6 @@ jobs:
               try:
                   data = json.loads(cfg_path.read_text(encoding="utf-8"))
                   
-                  # Remove or fix extra_special_tokens if it maps token strings to integer IDs
                   if "extra_special_tokens" in data:
                       est = data["extra_special_tokens"]
                       if isinstance(est, dict):
@@ -55,7 +54,6 @@ jobs:
                       else:
                           del data["extra_special_tokens"]
 
-                  # Clean any top-level integer token values
                   for key in list(data.keys()):
                       if isinstance(data[key], int) and any(t in key.lower() for t in ["token", "im_start", "im_end"]):
                           del data[key]
@@ -90,7 +88,7 @@ jobs:
 
           ls -lh models/
 
-      - name: Commit & Push GGUF Model to Repository
+      - name: Commit & Push GGUF Model to Repository via Git LFS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -99,7 +97,11 @@ jobs:
           
           mkdir -p models/gguf
           cp models/LightningDude-Sovereign-500M.gguf models/gguf/
+
+          # Track .gguf files using Git LFS so GitHub accepts files > 100MB
+          git lfs track "models/gguf/*.gguf"
+          git add .gitattributes
           
           git add models/gguf/LightningDude-Sovereign-500M.gguf
-          git commit -m "⚡ Auto-converted GGUF Sovereign Model saved by GitHub Actions" || echo "No changes to commit"
+          git commit -m "⚡ Auto-converted GGUF Sovereign Model (LFS) saved by GitHub Actions" || echo "No changes to commit"
           git push origin main
