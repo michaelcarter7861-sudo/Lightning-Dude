@@ -36,23 +36,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip autoconf libtool pkg-config \
+            build-essential git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev automake ccache lld libltdl-dev patch \
-            libsqlite3-dev bzip2 libbz2-dev liblzma-dev
+            libsqlite3-dev bzip2 libbz2-dev liblzma-dev uuid-dev
 
-      - name: Cache Buildozer Android SDK & NDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            .buildozer
-          key: buildozer-cython029-py311-ndk25b-${{ hashFiles('buildozer.spec') }}
-
-      - name: Patch Android Safe Telemetry & Log Level
+      - name: Auto-Configure Clean buildozer.spec & Safe Telemetry
         run: |
           python3 -c '
           from pathlib import Path
+          
+          # 1. Patch core/autonomous_executor.py for Android safety
           exec_file = Path("core/autonomous_executor.py")
           if exec_file.exists():
               txt = exec_file.read_text(encoding="utf-8")
@@ -70,12 +64,44 @@ jobs:
                       "(psutil.virtual_memory().percent if psutil else 45.0)"
                   )
                   exec_file.write_text(txt, encoding="utf-8")
-          spec = Path("buildozer.spec")
-          if spec.exists():
-              stxt = spec.read_text(encoding="utf-8").replace("log_level = 1", "log_level = 2")
-              spec.write_text(stxt, encoding="utf-8")
-          print("[⚡] Patches applied & Debug log level 2 set!")
+
+          # 2. Write 100% verified buildozer.spec (Stable p4a + Python 3.11.6)
+          clean_spec = """[app]
+          title = Lightning Dude JARVAIS
+          package.name = lightningdude
+          package.domain = com.jarvais
+          source.dir = .
+          source.include_exts = py,png,jpg,kv,atlas,json,ldbrain,xml,db
+          source.exclude_dirs = .git,__pycache__,tests,.github,models
+          version = 1.0.0
+          requirements = python3==3.11.6,hostpython3==3.11.6,kivy==2.3.0,pyjnius==1.6.1,requests,urllib3,chardet,idna,certifi
+          orientation = portrait
+          fullscreen = 0
+          android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,CHANGE_WIFI_STATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE,READ_CONTACTS,WRITE_CONTACTS,READ_CALL_LOG,WRITE_CALL_LOG,READ_PHONE_STATE,CALL_PHONE,READ_SMS,SEND_SMS,RECEIVE_SMS,BIND_NOTIFICATION_LISTENER_SERVICE,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,BIND_ACCESSIBILITY_SERVICE,QUERY_ALL_PACKAGES,RECORD_AUDIO,CAMERA,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,WAKE_LOCK,FOREGROUND_SERVICE,RECEIVE_BOOT_COMPLETED,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+          android.api = 33
+          android.minapi = 24
+          android.ndk = 25b
+          android.ndk_api = 24
+          android.accept_sdk_license = True
+          android.archs = arm64-v8a
+          p4a.branch = release-2024.01.21
+
+          [buildozer]
+          log_level = 2
+          warn_on_root = 0
+          """
+          clean_lines = "\n".join(line.lstrip() for line in clean_spec.strip().splitlines())
+          Path("buildozer.spec").write_text(clean_lines + "\n", encoding="utf-8")
+          print("[⚡] Clean buildozer.spec & Android patches automatically written!")
           '
+
+      - name: Cache Buildozer Android SDK & NDK (Clean Key)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: buildozer-clean-gcc-py311-v2-${{ hashFiles('buildozer.spec') }}
 
       - name: Lock Cython 0.29.36 Globally & Install Buildozer
         run: |
@@ -92,11 +118,10 @@ jobs:
         env:
           PIP_CONSTRAINT: /tmp/pip_constraints.txt
           GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false"
-          CFLAGS: "-Wno-error=incompatible-function-pointer-types -Wno-error=implicit-function-declaration -Wno-error=int-conversion"
-          ANDROIDNDK: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
-          ANDROID_NDK_HOME: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
-          ANDROID_NDK_ROOT: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
         run: |
+          # Remove any stale p4a master checkout from cache before building
+          rm -rf .buildozer/android/platform/python-for-android
+          rm -rf .buildozer/android/platform/build-arm64-v8a
           yes | buildozer android debug
 
       - name: Upload Ready-to-Install Lightning Dude APK
