@@ -32,21 +32,29 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Install Official Buildozer Ubuntu Dependencies
+      - name: Force IPv4 & Install Official Buildozer + Apache ANT Dependencies
         run: |
+          # Force IPv4 priority on GitHub Azure runner to prevent Errno 101 Network is unreachable
+          echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 || true
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 || true
+
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential git zip unzip autoconf libtool pkg-config \
+            ant build-essential git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake \
             libffi-dev libssl-dev automake ccache lld libltdl-dev patch \
             libsqlite3-dev bzip2 libbz2-dev liblzma-dev uuid-dev
+
+          # Pre-populate Buildozer Apache ANT path from system ANT so it skips archive.apache.org download
+          mkdir -p /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin
+          ln -sf /usr/bin/ant /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin/ant
 
       - name: Auto-Configure Clean buildozer.spec & Safe Telemetry
         run: |
           python3 -c '
           from pathlib import Path
           
-          # 1. Patch core/autonomous_executor.py for Android safety
           exec_file = Path("core/autonomous_executor.py")
           if exec_file.exists():
               txt = exec_file.read_text(encoding="utf-8")
@@ -65,7 +73,6 @@ jobs:
                   )
                   exec_file.write_text(txt, encoding="utf-8")
 
-          # 2. Write 100% verified buildozer.spec (Stable p4a + Python 3.11.6)
           clean_spec = """[app]
           title = Lightning Dude JARVAIS
           package.name = lightningdude
@@ -82,6 +89,7 @@ jobs:
           android.minapi = 24
           android.ndk = 25b
           android.ndk_api = 24
+          android.ant_path = /home/runner/.buildozer/android/platform/apache-ant-1.9.4
           android.accept_sdk_license = True
           android.archs = arm64-v8a
           p4a.branch = release-2024.01.21
@@ -92,16 +100,16 @@ jobs:
           """
           clean_lines = "\n".join(line.lstrip() for line in clean_spec.strip().splitlines())
           Path("buildozer.spec").write_text(clean_lines + "\n", encoding="utf-8")
-          print("[⚡] Clean buildozer.spec & Android patches automatically written!")
+          print("[⚡] Clean buildozer.spec with local ANT & Android patches written!")
           '
 
-      - name: Cache Buildozer Android SDK & NDK (Clean Key)
+      - name: Cache Buildozer Android SDK & NDK
         uses: actions/cache@v4
         with:
           path: |
             ~/.buildozer
             .buildozer
-          key: buildozer-clean-gcc-py311-v2-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-clean-ipv4-py311-v3-${{ hashFiles('buildozer.spec') }}
 
       - name: Lock Cython 0.29.36 Globally & Install Buildozer
         run: |
@@ -117,9 +125,10 @@ jobs:
       - name: Compile Lightning Dude Sovereign APK
         env:
           PIP_CONSTRAINT: /tmp/pip_constraints.txt
-          GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false"
+          GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false -Djava.net.preferIPv4Stack=true"
         run: |
-          # Remove any stale p4a master checkout from cache before building
+          mkdir -p /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin
+          ln -sf /usr/bin/ant /home/runner/.buildozer/android/platform/apache-ant-1.9.4/bin/ant
           rm -rf .buildozer/android/platform/python-for-android
           rm -rf .buildozer/android/platform/build-arm64-v8a
           yes | buildozer android debug
