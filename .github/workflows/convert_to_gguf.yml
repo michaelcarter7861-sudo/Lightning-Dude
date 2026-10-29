@@ -27,16 +27,28 @@ jobs:
 
           cd models/LightningDude-Sovereign-500M
 
-          # If model-00001 is split into parts (.part00, .part01...), merge them back into single file
+          # Merge sharded safetensors parts if present
           if [ -f "model-00001-of-00019.safetensors.part00" ]; then
               echo "Merging model-00001 sharded parts into model-00001-of-00019.safetensors..."
               cat model-00001-of-00019.safetensors.part* > model-00001-of-00019.safetensors
           fi
 
-          # Ensure vocab/tokenizer mapping exists for conversion script
-          if [ -f "tokenizer.json" ] && [ ! -f "vocab.json" ]; then
-              cp tokenizer.json vocab.json
-          fi
+          # Fix potential list/dict issue in tokenizer_config.json extra_special_tokens if needed
+          python3 -c '
+          import json
+          from pathlib import Path
+          cfg_path = Path("tokenizer_config.json")
+          if cfg_path.exists():
+              try:
+                  data = json.loads(cfg_path.read_text(encoding="utf-8"))
+                  if "extra_special_tokens" in data and isinstance(data["extra_special_tokens"], list):
+                      # Convert list to dict if needed by transformers
+                      data["extra_special_tokens"] = {str(item): i for i, item in enumerate(data["extra_special_tokens"])}
+                      cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                      print("[⚡] Fixed tokenizer_config.json extra_special_tokens format!")
+              except Exception as e:
+                  print(f"Tokenizer config patch warning: {e}")
+          '
 
           ls -lh model-00001-of-00019.safetensors || true
           cd ../..
@@ -58,7 +70,8 @@ jobs:
         run: |
           python3 llama.cpp/convert_hf_to_gguf.py models/LightningDude-Sovereign-500M \
             --outfile models/LightningDude-Sovereign-500M.gguf \
-            --outtype q8_0
+            --outtype q8_0 \
+            --vocab-type hf
 
           ls -lh models/
 
