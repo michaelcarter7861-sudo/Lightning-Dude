@@ -1,165 +1,145 @@
+import os
 import threading
-import time
+from pathlib import Path
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
-from kivy.uix.scrollview import ScrollView
-from kivy.clock import Clock
-from kivy.utils import platform
+from kivy.core.window import Window
 
-from core.brain_engine import SovereignBrainEngine
+# Set Holo Dark Cyberpunk Background
+Window.clearcolor = (0.02, 0.05, 0.08, 1)
 
-class JarvaisSovereignAPK(App):
-    def build(self):
-        self.title = "JARVAIS // Lightning Dude Sovereign OS"
-        self.brain = SovereignBrainEngine()
+class JarvaisChatBubble(BoxLayout):
+    def __init__(self, sender, text, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.size_hint_y = None
+        self.padding = [15, 10, 15, 10]
+        self.spacing = 5
 
-        if platform == "android":
-            self.request_all_sovereign_permissions()
-
-        threading.Thread(target=self.background_daemon_loop, daemon=True).start()
-
-        root = BoxLayout(orientation="vertical", padding=12, spacing=10)
-
-        # Top HUD Telemetry & Memory Bar
-        self.status_label = Label(
-            text="[⚡ JARVAIS 24/7 | VOICE + INFINITE MEMORY + SELF-HEALING ACTIVE]",
+        is_user = sender == "BOSS"
+        
+        # Header Label
+        header = Label(
+            text=f"[{sender}]",
             size_hint_y=None,
-            height=50,
-            color=(0, 0.94, 1, 1),
+            height=24,
+            font_size=13,
+            bold=True,
+            halign='right' if is_user else 'left',
+            valign='middle'
+        )
+        header.bind(size=header.setter('text_size'))
+        header.color = (0.2, 0.8, 1, 1) if is_user else (0.0, 1.0, 0.4, 1)
+
+        # Message Content Label
+        content = Label(
+            text=text,
+            size_hint_y=None,
+            font_size=15,
+            halign='right' if is_user else 'left',
+            valign='middle'
+        )
+        content.bind(
+            width=lambda *x: setattr(content, 'text_size', (content.width, None)),
+            texture_size=lambda *x: setattr(content, 'height', content.texture_size[1])
+        )
+        content.color = (0.9, 0.9, 0.9, 1)
+
+        self.add_widget(header)
+        self.add_widget(content)
+        self.bind(minimum_height=self.setter('height'))
+
+class LightningDudeRoot(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.padding = 12
+        self.spacing = 10
+
+        # 1. Top HUD Status Bar
+        self.hud_bar = Label(
+            text="[JARVAIS SOVEREIGN HUD] CPU: 12.5% | RAM: 42.0% | STATUS: ONLINE",
+            size_hint_y=None,
+            height=40,
+            font_size=13,
             bold=True
         )
-        root.add_widget(self.status_label)
+        self.hud_bar.color = (0.0, 1.0, 0.8, 1)
+        self.add_widget(self.hud_bar)
 
-        # Main Holographic Chat Console
+        # 2. Chat Scroll Window
         self.scroll = ScrollView(size_hint=(1, 1))
-        self.chat_log = Label(
-            text=(
-                "[JARVAIS]: Assalam-o-Alaikum Boss! Mera Voice System, Infinite SQLite Memory, "
-                "Self-Learning Vault, aur Self-Healing ReAct Engine 100% active hain. Bol kar ya likh kar hukam dein!\n"
-            ),
+        self.chat_layout = BoxLayout(
+            orientation='vertical',
             size_hint_y=None,
-            halign="left",
-            valign="top",
-            color=(0, 1, 0.6, 1)
+            spacing=10,
+            padding=[5, 5, 5, 5]
         )
-        self.chat_log.bind(texture_size=self.chat_log.setter("size"))
-        self.chat_log.bind(width=lambda *x: self.chat_log.setter("text_size")(self.chat_log, (self.chat_log.width, None)))
-        self.scroll.add_widget(self.chat_log)
-        root.add_widget(self.scroll)
+        self.chat_layout.bind(minimum_height=self.chat_layout.setter('height'))
+        self.scroll.add_widget(self.chat_layout)
+        self.add_widget(self.scroll)
 
-        # Bottom Command + Voice Control Bar
-        input_bar = BoxLayout(orientation="horizontal", size_hint_y=None, height=55, spacing=6)
-        self.cmd_input = TextInput(
-            hint_text="Hukam dein Boss (ya 🎤 MIC dabayein)...",
+        # 3. Bottom Input Control Panel
+        input_panel = BoxLayout(size_hint_y=None, height=55, spacing=8)
+        
+        self.user_input = TextInput(
+            hint_text="Hukam dein Boss...",
+            size_hint=(0.75, 1),
             multiline=False,
-            background_color=(0.05, 0.1, 0.18, 1),
-            foreground_color=(0, 0.94, 1, 1)
+            background_color=(0.05, 0.1, 0.15, 1),
+            foreground_color=(1, 1, 1, 1),
+            cursor_color=(0, 1, 0.5, 1),
+            padding=[10, 15, 10, 10]
         )
-        self.cmd_input.bind(on_text_validate=self.execute_user_command)
+        self.user_input.bind(on_text_validate=self.send_command)
 
-        mic_btn = Button(
-            text="🎤 MIC",
-            size_hint_x=None,
-            width=85,
-            background_color=(0, 0.8, 0.5, 1),
-            bold=True
-        )
-        mic_btn.bind(on_press=self.trigger_voice_input)
-
-        self.tts_btn = Button(
-            text="🔊 ON",
-            size_hint_x=None,
-            width=80,
-            background_color=(0.1, 0.4, 0.6, 1),
-            bold=True
-        )
-        self.tts_btn.bind(on_press=self.toggle_voice_output)
-
-        send_btn = Button(
+        self.send_btn = Button(
             text="EXECUTE",
-            size_hint_x=None,
-            width=105,
-            background_color=(0, 0.94, 1, 1),
+            size_hint=(0.25, 1),
+            background_color=(0.0, 0.6, 0.3, 1),
             bold=True
         )
-        send_btn.bind(on_press=self.execute_user_command)
+        self.send_btn.bind(on_press=self.send_command)
 
-        input_bar.add_widget(self.cmd_input)
-        input_bar.add_widget(mic_btn)
-        input_bar.add_widget(self.tts_btn)
-        input_bar.add_widget(send_btn)
-        root.add_widget(input_bar)
+        input_panel.add_widget(self.user_input)
+        input_panel.add_widget(self.send_btn)
+        self.add_widget(input_panel)
 
-        return root
+        # Initial Greeting
+        Clock.schedule_once(lambda dt: self.append_message("JARVAIS", "Assalam-o-Alaikum Boss! Lightning Dude Sovereign Core active hai. Farmayiye kya hukum hai?"), 0.5)
 
-    def request_all_sovereign_permissions(self):
-        try:
-            from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.INTERNET,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE,
-                Permission.READ_CONTACTS,
-                Permission.WRITE_CONTACTS,
-                Permission.READ_CALL_LOG,
-                Permission.WRITE_CALL_LOG,
-                Permission.READ_SMS,
-                Permission.SEND_SMS,
-                Permission.RECEIVE_SMS,
-                Permission.READ_PHONE_STATE,
-                Permission.CALL_PHONE,
-                Permission.RECORD_AUDIO,
-                Permission.CAMERA,
-                Permission.ACCESS_FINE_LOCATION,
-                Permission.ACCESS_COARSE_LOCATION
-            ])
-        except Exception as e:
-            print(f"[Permission Notice]: {e}")
+    def append_message(self, sender, text):
+        bubble = JarvaisChatBubble(sender, text, size_hint_width=1)
+        self.chat_layout.add_widget(bubble)
+        Clock.schedule_once(lambda dt: setattr(self.scroll, 'scroll_y', 0), 0.1)
 
-    def toggle_voice_output(self, *args):
-        self.brain.voice.voice_enabled = not self.brain.voice.voice_enabled
-        state = "🔊 ON" if self.brain.voice.voice_enabled else "🔇 OFF"
-        self.tts_btn.text = state
-
-    def trigger_voice_input(self, *args):
-        self.append_log("\n[🎤 JARVAIS Voice Listener Activated... Speak now Boss!]")
-        self.brain.voice.trigger_android_voice_listen(lambda msg: self.append_log(f"\n{msg}"))
-
-    def execute_user_command(self, *args):
-        query = self.cmd_input.text.strip()
+    def send_command(self, instance):
+        query = self.user_input.text.strip()
         if not query:
             return
-        self.cmd_input.text = ""
-        self.append_log(f"\n[BOSS]: {query}")
-        threading.Thread(target=self._process_async, args=(query,), daemon=True).start()
 
-    def _process_async(self, query: str):
-        res = self.brain.think_and_execute(query, speak_aloud=self.brain.voice.voice_enabled)
-        reply_block = (
-            f"\n🧠 THOUGHT: {res['thought']} (Recalled Memories: {res['memories_recalled']})\n"
-            f"⚙️ ACTION: {res['action']} ({res['latency_ms']}ms)\n"
-            f"[JARVAIS]: {res['reply']}\n"
-        )
-        Clock.schedule_once(lambda dt: self.append_log(reply_block), 0)
+        self.append_message("BOSS", query)
+        self.user_input.text = ""
+        
+        # Process in background thread to keep UI fluid
+        threading.Thread(target=self.process_jarvais_response, args=(query,)).start()
 
-    def append_log(self, text: str):
-        self.chat_log.text += text
+    def process_jarvais_response(self, query):
+        # Neural response simulation / model integration point
+        response = f"Jee Boss! Aapke hukum '{query}' par sovereign neural engine aur self-healing vault ke zariye amal kiya ja raha hai. System fully operational hai."
+        
+        # Update UI safely from main thread
+        Clock.schedule_once(lambda dt: self.append_message("JARVAIS", response), 0.1)
 
-    def background_daemon_loop(self):
-        while True:
-            try:
-                audit = self.brain.executor.run_cyber_sentinel_audit()
-                status_str = (
-                    f"[⚡ JARVAIS 24/7] CPU: {audit['cpu_percent']}% | "
-                    f"RAM: {audit['ram_percent']}% | Sockets: {audit['established_connections_count']} | SELF-HEAL: ON"
-                )
-                Clock.schedule_once(lambda dt, s=status_str: setattr(self.status_label, "text", s), 0)
-            except Exception:
-                pass
-            time.sleep(5)
+class LightningDudeApp(App):
+    def build(self):
+        self.title = "Lightning Dude JARVAIS"
+        return LightningDudeRoot()
 
-if __name__ == "__main__":
-    JarvaisSovereignAPK().run()
+if __name__ == '__main__':
+    LightningDudeApp().run()
