@@ -1,0 +1,75 @@
+name: Build Sovereign Lightning Dude APK (GGUF Integrated)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout Repository with Git LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Pull GGUF Model via Git LFS & Verify Files
+        run: |
+          git lfs install
+          git lfs pull
+          
+          echo "=== Checking GGUF Model & Core Files ==="
+          ls -lh main.py service.py buildozer.spec
+          ls -lh models/gguf/LightningDude-Sovereign-500M.gguf
+
+          # Ensure GGUF is real binary (> 100MB) and not an LFS pointer
+          fsize=$(stat -c%s "models/gguf/LightningDude-Sovereign-500M.gguf")
+          if [ "$fsize" -lt 100000000 ]; then
+            echo "ERROR: GGUF file is too small ($fsize bytes). LFS pull failed!"
+            exit 1
+          fi
+          echo "[⚡] Verified 500M GGUF Model Size: $fsize bytes"
+
+      - name: Install System Dependencies for Buildozer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk python3-pip autoconf libtool \
+            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev automake ccache
+
+      - name: Set up Python 3.11 & Buildozer
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Buildozer & Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer==1.5.0 cython==0.29.36 virtualenv
+
+      - name: Cache Buildozer Android SDK/NDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            .buildozer
+            ~/.buildozer
+          key: buildozer-gguf-${{ runner.os }}-v2
+
+      - name: Compile Sovereign APK with GGUF Asset
+        run: |
+          yes | buildozer android debug
+          ls -lh bin/
+
+      - name: Upload Compiled Sovereign APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightningDude-JARVAIS-Sovereign-APK
+          path: bin/*.apk
