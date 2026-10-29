@@ -27,26 +27,43 @@ jobs:
 
           cd models/LightningDude-Sovereign-500M
 
-          # Merge sharded safetensors parts if present
+          # 1. Merge sharded safetensors parts if present
           if [ -f "model-00001-of-00019.safetensors.part00" ]; then
               echo "Merging model-00001 sharded parts into model-00001-of-00019.safetensors..."
               cat model-00001-of-00019.safetensors.part* > model-00001-of-00019.safetensors
           fi
 
-          # Fix potential list/dict issue in tokenizer_config.json extra_special_tokens if needed
+          # 2. Fix invalid integer/list formats in tokenizer_config.json & generation_config.json
           python3 -c '
           import json
           from pathlib import Path
-          cfg_path = Path("tokenizer_config.json")
-          if cfg_path.exists():
-              try:
-                  data = json.loads(cfg_path.read_text(encoding="utf-8"))
-                  if "extra_special_tokens" in data and isinstance(data["extra_special_tokens"], list):
-                      data["extra_special_tokens"] = {str(item): i for i, item in enumerate(data["extra_special_tokens"])}
-                      cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-                      print("[⚡] Fixed tokenizer_config.json extra_special_tokens format!")
-              except Exception as e:
-                  print(f"Tokenizer config patch warning: {e}")
+
+          for fname in ["tokenizer_config.json", "generation_config.json"]:
+              fpath = Path(fname)
+              if fpath.exists():
+                  try:
+                      data = json.loads(fpath.read_text(encoding="utf-8"))
+                      
+                      # Fix extra_special_tokens or chat template tokens if they are ints
+                      for key in ["extra_special_tokens", "bos_token", "eos_token", "pad_token", "im_start", "im_end"]:
+                          if key in data:
+                              val = data[key]
+                              if isinstance(val, list):
+                                  data[key] = {str(item): i for i, item in enumerate(val)}
+                              elif isinstance(val, int):
+                                  # If token is stored as ID integer, convert or remove to let tokenizer re-infer
+                                  del data[key]
+                      
+                      # Also check added_tokens_decoder if present
+                      if "added_tokens_decoder" in data:
+                          for tid, tinfo in list(data["added_tokens_decoder"].items()):
+                              if isinstance(tinfo, dict) and "content" in tinfo and isinstance(tinfo["content"], int):
+                                  tinfo["content"] = str(tinfo["content"])
+
+                      fpath.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                      print(f"[⚡] Successfully sanitized {fname}!")
+                  except Exception as e:
+                      print(f"Sanitization warning for {fname}: {e}")
           '
 
           ls -lh model-00001-of-00019.safetensors || true
