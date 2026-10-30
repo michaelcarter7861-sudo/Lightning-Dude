@@ -6,9 +6,9 @@ package.domain = org.jarvais
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,json,jinja
 
-# Exclude heavy safetensors shards so APK only packs the clean GGUF model
-source.exclude_dirs = tests, bin, .git, .github, llama.cpp, models/LightningDude-Sovereign-500M
-source.exclude_exts = safetensors, part00, part01, part02, part03, part04, part05
+# Exclude heavy safetensors shards AND models folder from private.mp3 so GGUF isn't packed twice!
+source.exclude_dirs = tests, bin, .git, .github, llama.cpp, models, assets
+source.exclude_exts = safetensors, gguf, part00, part01, part02, part03, part04, part05
 
 version = 2.0.0
 
@@ -21,8 +21,8 @@ android.presplash_color = #050D14
 # 24/7 Background Service Integration
 services = Jarvais:service.py:foreground
 
-# Clean Asset path for Buildozer
-android.add_assets = models/gguf/LightningDude-Sovereign-500M.gguf
+# Clean Asset path mapped via local assets directory
+android.add_assets = assets/LightningDude-Sovereign-500M.gguf
 
 # Full Device Authorities + Floating Orb Overlay + Background Service Permissions
 android.permissions = INTERNET,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,SYSTEM_ALERT_WINDOW,VIBRATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
@@ -34,7 +34,8 @@ android.archs = arm64-v8a
 android.allow_backup = True
 
 p4a.branch = v2024.01.21
+p4a.hook = p4a_hook.py
 
 [buildozer]
-log_level = 2
+log_level = 1
 warn_on_root = 0
