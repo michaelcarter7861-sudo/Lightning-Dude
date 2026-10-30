@@ -20,7 +20,7 @@ jobs:
         with:
           lfs: true
 
-      - name: Pull GGUF Model via Git LFS & Prepare Assets
+      - name: Pull GGUF Model, Prepare Assets & Create Gradle Hook
         run: |
           git lfs install
           git lfs pull
@@ -40,6 +40,33 @@ jobs:
           mkdir -p assets
           cp models/gguf/LightningDude-Sovereign-500M.gguf assets/
           ls -lh assets/
+
+          # Create p4a_hook.py to disable compression on .gguf files & increase Gradle heap
+          cat << 'EOF' > p4a_hook.py
+          from pathlib import Path
+
+          def after_apk_build(toolchain):
+              pass
+
+          def before_apk_build(toolchain):
+              dist_dir = Path(toolchain.ctx.dist_dir) / toolchain.args.dist_name
+              gradle_file = dist_dir / "build.gradle"
+              if gradle_file.exists():
+                  content = gradle_file.read_text(encoding="utf-8")
+                  if "noCompress" not in content:
+                      patch = "\nandroid {\n    aaptOptions {\n        noCompress 'gguf'\n    }\n}\n"
+                      gradle_file.write_text(content + patch, encoding="utf-8")
+                      print("[⚡] Patched build.gradle with noCompress 'gguf'!")
+
+              gradle_props = dist_dir / "gradle.properties"
+              props_text = gradle_props.read_text(encoding="utf-8") if gradle_props.exists() else ""
+              if "org.gradle.jvmargs" in props_text:
+                  lines = [l for l in props_text.splitlines() if not l.startswith("org.gradle.jvmargs")]
+                  props_text = "\n".join(lines) + "\n"
+              props_text += "\norg.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8\n"
+              gradle_props.write_text(props_text, encoding="utf-8")
+              print("[⚡] Patched gradle.properties with 6GB Heap Memory!")
+          EOF
 
       - name: Set up JDK 17 (Required by Android Gradle Plugin)
         uses: actions/setup-java@v4
@@ -78,6 +105,8 @@ jobs:
         env:
           CFLAGS: "-Wno-error -Wno-deprecated-declarations -Wno-incompatible-function-pointer-types"
           JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx6144m -XX:MaxMetaspaceSize=1024m' -Dorg.gradle.workers.max=2"
+          _JAVA_OPTIONS: "-Xmx6144m"
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
           java -version
