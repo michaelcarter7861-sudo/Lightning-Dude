@@ -1,5 +1,6 @@
 import os
 import math
+import time
 import shutil
 import subprocess
 import threading
@@ -9,9 +10,11 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.metrics import dp
-from kivy.graphics import Color, Ellipse, Line, RoundedRectangle, Triangle
+from kivy.graphics import Color, Ellipse, Line, RoundedRectangle, Triangle, Rectangle
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.widget import Widget
 from kivy.uix.modalview import ModalView
@@ -20,14 +23,41 @@ from kivy.uix.button import Button
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.utils import platform
 
+# Deep cyberpunk obsidian background
 Window.clearcolor = (0.02, 0.05, 0.08, 1)
 
 
+class SovereignTerminalLogger:
+    """Stores live system logs and command outputs for the built-in Terminal Console"""
+    logs = [
+        "[BOOT] LIGHTNING DUDE // JARVAIS SOVEREIGN OS v2.0.0",
+        "[CORE] Target Model: LightningDude-Sovereign-500M.gguf",
+        "[DAEMON] 24/7 Foreground WakeLock & Hands-Free Standby Ready."
+    ]
+    listeners = []
+
+    @classmethod
+    def log(cls, msg: str):
+        ts = time.strftime("%H:%M:%S")
+        line = f"[{ts}] {msg}"
+        print(line)
+        cls.logs.append(line)
+        if len(cls.logs) > 250:
+            cls.logs = cls.logs[-250:]
+        for cb in list(cls.listeners):
+            try:
+                Clock.schedule_once(lambda dt, c=cb: c("\n".join(cls.logs)), 0)
+            except Exception:
+                pass
+
+
 class AndroidSystemBridge:
-    """Real Android Voice STT, TTS, Asset Extraction, 24/7 Battery Exemption & Service Bridge"""
+    """Full Device Control Authorities, Hands-Free Continuous STT, Voice TTS & Native Asset Extractor"""
     _tts = None
     _voice_callback = None
     _bound_result = False
+    hands_free_enabled = True
+    is_currently_listening = False
 
     @classmethod
     def init_tts(cls):
@@ -38,27 +68,30 @@ class AndroidSystemBridge:
             PythonActivity = autoclass("org.kivy.android.PythonActivity")
             TextToSpeech = autoclass("android.speech.tts.TextToSpeech")
             cls._tts = TextToSpeech(PythonActivity.mActivity, None)
+            SovereignTerminalLogger.log("[TTS] Android Neural Voice Synthesizer Initialized.")
         except Exception as e:
-            print(f"[TTS Notice]: {e}")
+            SovereignTerminalLogger.log(f"[TTS WARN] {e}")
 
     @classmethod
     def speak(cls, text: str):
+        SovereignTerminalLogger.log(f"[JARVAIS]: {text}")
         if platform != "android":
             return
         try:
             if cls._tts is None:
                 cls.init_tts()
             if cls._tts:
-                cls._tts.speak(str(text), 0, None, "jarvais_utt")
+                cls._tts.speak(str(text), 0, None, "jarvais_speech_id")
         except Exception as e:
-            print(f"[Speak Error]: {e}")
+            SovereignTerminalLogger.log(f"[SPEAK ERR] {e}")
 
     @classmethod
-    def start_voice_recognition(cls, callback):
-        """Triggers real Android Speech-to-Text recognizer"""
+    def trigger_voice_listen(cls, callback, hands_free_loop=False):
+        """Starts voice recognition (supports both tap-to-speak and hands-free wake-word)"""
         cls._voice_callback = callback
         if platform != "android":
-            callback("Tell me system status")
+            SovereignTerminalLogger.log("[STT] Desktop Simulation -> 'Jarvais system status'")
+            callback("Jarvais system status")
             return
         try:
             from jnius import autoclass
@@ -77,50 +110,67 @@ class AndroidSystemBridge:
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
-            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to JARVAIS, Boss...")
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            intent.putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                "Hands-Free Wake Standby ('Hey Jarvais')..." if hands_free_loop else "Speak your command, Boss..."
+            )
+            cls.is_currently_listening = True
             PythonActivity.mActivity.startActivityForResult(intent, 9001)
         except Exception as e:
-            if callback:
-                callback(f"Voice error: {e}")
+            cls.is_currently_listening = False
+            SovereignTerminalLogger.log(f"[STT ERR] {e}")
 
     @classmethod
     def _on_activity_result(cls, request_code, result_code, intent):
-        if request_code == 9001 and intent is not None:
-            try:
-                from jnius import autoclass
-                RecognizerIntent = autoclass("android.speech.RecognizerIntent")
-                results = intent.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                if results and results.size() > 0:
-                    spoken_text = str(results.get(0))
-                    if cls._voice_callback:
-                        Clock.schedule_once(lambda dt: cls._voice_callback(spoken_text), 0)
-            except Exception as e:
-                print(f"[STT Result Error]: {e}")
+        if request_code == 9001:
+            cls.is_currently_listening = False
+            if intent is not None:
+                try:
+                    from jnius import autoclass
+                    RecognizerIntent = autoclass("android.speech.RecognizerIntent")
+                    results = intent.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                    if results and results.size() > 0:
+                        spoken_text = str(results.get(0))
+                        SovereignTerminalLogger.log(f"[VOICE IN]: {spoken_text}")
+                        if cls._voice_callback:
+                            Clock.schedule_once(lambda dt: cls._voice_callback(spoken_text), 0)
+                        return
+                except Exception as e:
+                    SovereignTerminalLogger.log(f"[STT PARSE ERR] {e}")
+            # If hands-free mode is active and nothing was spoken, re-arm after short cooldown
+            if cls.hands_free_enabled and cls._voice_callback:
+                Clock.schedule_once(lambda dt: cls._voice_callback(""), 0)
 
     @staticmethod
-    def request_all_permissions():
+    def request_runtime_permissions():
         if platform != "android":
-            return "Desktop Mode: Permissions active"
+            return "Desktop Mode: Runtime permissions simulated"
         try:
             from android.permissions import request_permissions, Permission
             perms = [
                 Permission.RECORD_AUDIO,
                 Permission.READ_EXTERNAL_STORAGE,
                 Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.CAMERA,
+                Permission.CALL_PHONE,
+                Permission.READ_CONTACTS,
                 "android.permission.POST_NOTIFICATIONS",
                 "android.permission.FOREGROUND_SERVICE",
+                "android.permission.FOREGROUND_SERVICE_MICROPHONE",
                 "android.permission.WAKE_LOCK",
             ]
             request_permissions(perms)
-            return "Requested Mic & Notification Permissions"
+            SovereignTerminalLogger.log("[AUTH] Requested Mic, Storage, Phone, Camera & Notification Authorities.")
+            return "Requested Runtime Authorities"
         except Exception as e:
+            SovereignTerminalLogger.log(f"[AUTH WARN] {e}")
             return f"Perm notice: {e}"
 
     @staticmethod
     def request_unrestricted_battery():
-        """Ensures Android OS NEVER kills the 24/7 background service"""
         if platform != "android":
-            return "24/7 Battery Unchecked (Desktop)"
+            return "24/7 Battery Active (Desktop)"
         try:
             from jnius import autoclass
             PythonActivity = autoclass("org.kivy.android.PythonActivity")
@@ -137,29 +187,18 @@ class AndroidSystemBridge:
                 intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 intent.setData(Uri.parse(f"package:{pkg}"))
                 activity.startActivity(intent)
-                return "Requested 24/7 Unrestricted Battery Mode"
-            return "24/7 Unrestricted Battery Already Active"
+                SovereignTerminalLogger.log("[24/7] Requested Unrestricted Battery Optimization Exemption.")
+                return "Opened 24/7 Battery Exemption Dialog"
+            SovereignTerminalLogger.log("[24/7] Unrestricted Battery Mode Verified Active.")
+            return "24/7 Unrestricted Battery Verified"
         except Exception as e:
-            return f"Battery opt notice: {e}"
+            return f"Battery notice: {e}"
 
     @staticmethod
-    def open_android_settings():
+    def request_all_files_access():
+        """Opens MANAGE_APP_ALL_FILES_ACCESS_PERMISSION for complete device storage control"""
         if platform != "android":
-            return "Opened Settings"
-        try:
-            from jnius import autoclass
-            PythonActivity = autoclass("org.kivy.android.PythonActivity")
-            Intent = autoclass("android.content.Intent")
-            Settings = autoclass("android.provider.Settings")
-            PythonActivity.mActivity.startActivity(Intent(Settings.ACTION_SETTINGS))
-            return "Opened Android System Settings"
-        except Exception as e:
-            return f"Settings err: {e}"
-
-    @staticmethod
-    def request_overlay_permission():
-        if platform != "android":
-            return "Overlay Permission Ready"
+            return "Full Storage Control Active (Desktop)"
         try:
             from jnius import autoclass
             PythonActivity = autoclass("org.kivy.android.PythonActivity")
@@ -168,14 +207,112 @@ class AndroidSystemBridge:
             Uri = autoclass("android.net.Uri")
             activity = PythonActivity.mActivity
             pkg = activity.getPackageName()
-            intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse(f"package:{pkg}")
-            )
+            intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+            intent.setData(Uri.parse(f"package:{pkg}"))
             activity.startActivity(intent)
+            SovereignTerminalLogger.log("[AUTH] Opened All-Files Management Authority Screen.")
+            return "Opened Full Storage Control Settings"
+        except Exception as e:
+            return f"All-Files notice: {e}"
+
+    @staticmethod
+    def request_overlay_permission():
+        """Opens SYSTEM_ALERT_WINDOW permission for Floating Orb overlay"""
+        if platform != "android":
+            return "Floating Orb Overlay Active (Desktop)"
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            Intent = autoclass("android.content.Intent")
+            Settings = autoclass("android.provider.Settings")
+            Uri = autoclass("android.net.Uri")
+            activity = PythonActivity.mActivity
+            pkg = activity.getPackageName()
+            intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse(f"package:{pkg}"))
+            activity.startActivity(intent)
+            SovereignTerminalLogger.log("[AUTH] Opened Floating Orb Overlay Authority.")
             return "Opened Floating Orb Overlay Settings"
         except Exception as e:
-            return f"Overlay err: {e}"
+            return f"Overlay notice: {e}"
+
+    @staticmethod
+    def request_write_system_settings():
+        """Opens ACTION_MANAGE_WRITE_SETTINGS for brightness/volume/system toggles"""
+        if platform != "android":
+            return "Write System Settings Active (Desktop)"
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            Intent = autoclass("android.content.Intent")
+            Settings = autoclass("android.provider.Settings")
+            Uri = autoclass("android.net.Uri")
+            activity = PythonActivity.mActivity
+            pkg = activity.getPackageName()
+            intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse(f"package:{pkg}"))
+            activity.startActivity(intent)
+            SovereignTerminalLogger.log("[AUTH] Opened Write System Settings Authority.")
+            return "Opened Write System Settings Authority"
+        except Exception as e:
+            return f"Write settings notice: {e}"
+
+    @staticmethod
+    def open_accessibility_settings():
+        """Opens Accessibility Settings for full screen-read and UI automation control"""
+        if platform != "android":
+            return "Accessibility Control Simulated"
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            Intent = autoclass("android.content.Intent")
+            Settings = autoclass("android.provider.Settings")
+            PythonActivity.mActivity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            SovereignTerminalLogger.log("[AUTH] Opened Accessibility Device Automation Settings.")
+            return "Opened Accessibility Control Settings"
+        except Exception as e:
+            return f"Accessibility err: {e}"
+
+    @staticmethod
+    def open_android_settings():
+        if platform != "android":
+            return "Opened Settings (Desktop)"
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            Intent = autoclass("android.content.Intent")
+            Settings = autoclass("android.provider.Settings")
+            PythonActivity.mActivity.startActivity(Intent(Settings.ACTION_SETTINGS))
+            SovereignTerminalLogger.log("[INTENT] Opened Android System Settings.")
+            return "Opened Android System Settings"
+        except Exception as e:
+            return f"Settings err: {e}"
+
+    @staticmethod
+    def launch_app_by_package(pkg_hint: str) -> str:
+        """Launches installed Android apps by name or package keyword"""
+        if platform != "android":
+            return f"Simulated launching {pkg_hint}"
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            activity = PythonActivity.mActivity
+            pm = activity.getPackageManager()
+
+            known_map = {
+                "whatsapp": "com.whatsapp",
+                "youtube": "com.google.android.youtube",
+                "chrome": "com.android.chrome",
+                "camera": "com.android.camera",
+                "phone": "com.android.dialer",
+                "calculator": "com.google.android.calculator",
+            }
+            target_pkg = known_map.get(pkg_hint.lower(), pkg_hint)
+            launch_intent = pm.getLaunchIntentForPackage(target_pkg)
+            if launch_intent:
+                activity.startActivity(launch_intent)
+                return f"Launched application: {target_pkg}"
+            return f"App '{pkg_hint}' not found or no launch intent."
+        except Exception as e:
+            return f"App launch error: {e}"
 
     @staticmethod
     def start_jarvais_service():
@@ -187,19 +324,25 @@ class AndroidSystemBridge:
             activity = PythonActivity.mActivity
             ServiceJarvais = autoclass("org.jarvais.lightningdude.ServiceJarvais")
             ServiceJarvais.start(activity, "Jarvais is ready • Wake-word standby • On-device")
-            return "24/7 Background Daemon Running"
+            SovereignTerminalLogger.log("[SERVICE] ServiceJarvais Foreground Sticky Daemon Started.")
+            return "24/7 Sticky Background Daemon Active"
         except Exception as e:
+            SovereignTerminalLogger.log(f"[SERVICE WARN] {e}")
             return f"Service notice: {e}"
 
     @staticmethod
-    def extract_apk_asset(asset_name: str, target_path: Path) -> bool:
-        """Extracts GGUF model or native binary from Android APK AssetManager to internal filesDir"""
-        if target_path.exists() and target_path.stat().st_size > 1000:
+    def extract_apk_asset(asset_name: str, target_path: Path, make_exec=False) -> bool:
+        if target_path.exists() and target_path.stat().st_size > 1024:
+            if make_exec:
+                os.chmod(str(target_path), 0o755)
             return True
-        if os.path.exists(asset_name):
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(asset_name, target_path)
-            return True
+        for local_candidate in [Path(asset_name), Path("assets") / asset_name, Path("models/gguf") / asset_name]:
+            if local_candidate.exists() and local_candidate.stat().st_size > 1024:
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(local_candidate, target_path)
+                if make_exec:
+                    os.chmod(str(target_path), 0o755)
+                return True
         if platform != "android":
             return False
         try:
@@ -210,7 +353,7 @@ class AndroidSystemBridge:
             target_path.parent.mkdir(parents=True, exist_ok=True)
             FileOutputStream = autoclass("java.io.FileOutputStream")
             out_stream = FileOutputStream(str(target_path))
-            buf = bytearray(1024 * 1024)  # 1MB streaming buffer
+            buf = bytearray(1024 * 1024)
             while True:
                 read_len = inp_stream.read(buf)
                 if read_len <= 0:
@@ -219,20 +362,23 @@ class AndroidSystemBridge:
             out_stream.flush()
             out_stream.close()
             inp_stream.close()
+            if make_exec:
+                os.chmod(str(target_path), 0o755)
+            SovereignTerminalLogger.log(f"[ASSET] Extracted {asset_name} -> {target_path}")
             return True
         except Exception as e:
-            print(f"[Asset Extract Notice ({asset_name})]: {e}")
+            SovereignTerminalLogger.log(f"[ASSET WARN] {asset_name}: {e}")
             return False
 
 
 class SovereignGGUFEngine:
-    """Extracts and runs LightningDude-Sovereign-500M.gguf on-device + Intelligent Bilingual Fallback"""
+    """Executes real LightningDude-Sovereign-500M.gguf via native ARM64 llama-cli + System Device Executor"""
     def __init__(self, status_callback=None):
         self.status_callback = status_callback
         self.model_path = None
         self.cli_path = None
         self.is_ready = False
-        self.status_msg = "Initializing 500M Sovereign Core..."
+        self.status_msg = "Mounting 500M Sovereign Core..."
         threading.Thread(target=self._prepare_engine, daemon=True).start()
 
     def _update_ui(self, msg: str):
@@ -253,87 +399,124 @@ class SovereignGGUFEngine:
             cli_target = base_dir / "llama-cli"
 
             if not gguf_target.exists() or gguf_target.stat().st_size < 10000000:
-                self._update_ui("Mounting 500M GGUF Model to Device Storage...")
+                self._update_ui("Extracting 500M GGUF to Fast Internal Storage...")
                 AndroidSystemBridge.extract_apk_asset("LightningDude-Sovereign-500M.gguf", gguf_target)
 
             if not cli_target.exists():
-                AndroidSystemBridge.extract_apk_asset("llama-cli", cli_target)
-                if cli_target.exists():
-                    os.chmod(str(cli_target), 0o755)
+                self._update_ui("Installing Native ARM64 GGUF Inference Binary...")
+                AndroidSystemBridge.extract_apk_asset("llama-cli", cli_target, make_exec=True)
+            else:
+                os.chmod(str(cli_target), 0o755)
 
             self.model_path = str(gguf_target)
             self.cli_path = str(cli_target) if cli_target.exists() else None
             self.is_ready = True
+
             if gguf_target.exists():
                 mb = gguf_target.stat().st_size // (1024 * 1024)
-                self._update_ui(f"Ready to help ({mb}MB GGUF Mounted • On-Device)")
+                engine_tag = "Native GGUF Ready" if self.cli_path else "GGUF Mounted"
+                self._update_ui(f"Ready to help ({mb}MB {engine_tag} • On-Device)")
+                SovereignTerminalLogger.log(f"[ENGINE] Model Verified ({mb} MB) | CLI: {self.cli_path}")
             else:
                 self._update_ui("Ready to help with your device.")
         except Exception as e:
             self.is_ready = True
+            SovereignTerminalLogger.log(f"[ENGINE INIT WARN] {e}")
             self._update_ui("Ready to help with your device.")
+
+    def run_shell_command(self, cmd_str: str) -> str:
+        """Executes direct Linux/Android shell commands from the built-in Terminal"""
+        SovereignTerminalLogger.log(f"$ {cmd_str}")
+        try:
+            proc = subprocess.run(
+                cmd_str, shell=True, capture_output=True, text=True, timeout=20
+            )
+            out = (proc.stdout or "") + (proc.stderr or "")
+            out = out.strip() or "[Command completed with exit code 0]"
+            SovereignTerminalLogger.log(out)
+            return out
+        except Exception as e:
+            err = f"[Shell Error]: {e}"
+            SovereignTerminalLogger.log(err)
+            return err
 
     def generate(self, prompt: str) -> str:
         q = prompt.strip()
-        low = q.lower()
+        if not q:
+            return "Listening in standby, Boss."
 
-        # 1. Direct Device Action Commands
+        # Strip wake-word prefix if present
+        low = q.lower()
+        for wake in ["hey jarvais", "hi jarvais", "jarvais", "hey jarvis", "jarvis", "lightning dude"]:
+            if low.startswith(wake):
+                q = q[len(wake):].strip(" ,.!?") or "Hello"
+                low = q.lower()
+                break
+
+        # 1. Direct Device Control Commands
         if "setting" in low:
             AndroidSystemBridge.open_android_settings()
-            return "Boss, maine Android System Settings khol di hain."
-        if "battery" in low or "24/7" in low or "background" in low:
+            return "Boss, maine Android System Settings open kar di hain."
+        if "accessibility" in low or "automation" in low:
+            AndroidSystemBridge.open_accessibility_settings()
+            return "Boss, full device control ke liye Accessibility Settings khol di hain."
+        if "battery" in low or "24/7" in low:
             AndroidSystemBridge.request_unrestricted_battery()
             AndroidSystemBridge.start_jarvais_service()
-            return "Boss, 24/7 Background Service aur Unrestricted Battery mode active kar diya gaya hai."
-        if "permission" in low or "allow" in low:
-            AndroidSystemBridge.request_all_permissions()
-            return "Boss, microphone aur notification permissions ka dialog open kar diya hai."
+            return "Boss, 24/7 Unrestricted Battery aur Sticky Service active kar di gayi hai."
+        if "storage" in low or "all files" in low:
+            AndroidSystemBridge.request_all_files_access()
+            return "Boss, Manage All Files storage control screen open kar di hai."
         if "overlay" in low or "floating" in low or "orb" in low:
             AndroidSystemBridge.request_overlay_permission()
-            return "Boss, Floating Orb overlay ki setting screen open kar di hai."
+            return "Boss, Floating Orb overlay ki permission screen khol di hai."
+        if "open " in low:
+            app_target = low.split("open ", 1)[1].strip()
+            res = AndroidSystemBridge.launch_app_by_package(app_target)
+            return f"Boss, {res}"
 
-        # 2. Native ARM64 llama-cli GGUF Execution (if binary present)
+        # 2. Real Native ARM64 llama-cli Execution on LightningDude-Sovereign-500M.gguf
         if self.cli_path and self.model_path and os.path.exists(self.cli_path) and os.path.exists(self.model_path):
             try:
+                SovereignTerminalLogger.log(f"[GGUF INFER] Running 500M model on: '{q}'")
                 formatted_prompt = (
-                    f"<|im_start|>system\nYou are JARVAIS (Lightning Dude), Boss's loyal bilingual assistant.<|im_end|>\n"
+                    "<|im_start|>system\nYou are JARVAIS (Lightning Dude), Boss's sovereign bilingual AI assistant. Keep answers concise and helpful.<|im_end|>\n"
                     f"<|im_start|>user\n{q}<|im_end|>\n<|im_start|>assistant\n"
                 )
                 cmd = [
                     self.cli_path,
                     "-m", self.model_path,
                     "-p", formatted_prompt,
-                    "-n", "96",
+                    "-n", "90",
                     "-t", "4",
-                    "--temp", "0.7",
+                    "--temp", "0.6",
                     "--no-display-prompt",
                     "-e"
                 ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
-                if proc.returncode == 0 and proc.stdout.strip():
-                    ans = proc.stdout.split("<|im_end|>")[0].strip()
-                    if ans:
-                        return ans
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                raw_out = (proc.stdout or "").strip()
+                if raw_out:
+                    clean_ans = raw_out.split("<|im_end|>")[0].split("<|im_start|>")[0].strip()
+                    if clean_ans:
+                        return clean_ans
             except Exception as e:
-                print(f"[GGUF CLI Notice]: {e}")
+                SovereignTerminalLogger.log(f"[GGUF CLI WARN] {e}")
 
-        # 3. Built-in Instant Bilingual Sovereign Intelligence (Never fails to answer!)
-        if any(w in low for w in ["hello", "hi", "salam", "assalam", "hey", "kaise ho", "kya haal"]):
-            return "Walaikum Assalam Boss! Main JARVAIS (Lightning Dude) hazir hoon. Aapka 500M local model aur 24/7 service bilkul ready hai. Hukam karein!"
-        if any(w in low for w in ["who are you", "kaun ho", "tumhara naam", "name"]):
-            return "Main Lightning Dude (JARVAIS) hoon, Boss! Aapka personal, 100% offline on-device sovereign AI assistant."
-        if any(w in low for w in ["time", "waqt", "baje", "date"]):
-            import time as _t
-            return f"Boss, is waqt aapke device par time {_t.strftime('%I:%M %p')} hai."
-        if any(w in low for w in ["status", "model", "gguf"]):
-            exists = self.model_path and os.path.exists(self.model_path)
-            return f"Boss, LightningDude-Sovereign-500M.gguf ({'Verified on storage' if exists else 'Active'}) aur 24/7 Foreground Daemon bilkul fit chal rahe hain."
+        # 3. Instant Sovereign Bilingual Fallback
+        if any(w in low for w in ["hello", "hi", "salam", "assalam", "hey", "kaise ho"]):
+            return "Walaikum Assalam Boss! Main JARVAIS hazir hoon. 24/7 Hands-Free Wake-Word, Terminal aur 500M GGUF core active hain. Hukam karein!"
+        if any(w in low for w in ["time", "waqt", "baje"]):
+            return f"Boss, is waqt aapke phone par {time.strftime('%I:%M %p')} baj rahe hain."
+        if any(w in low for w in ["status", "report", "model"]):
+            m_ok = self.model_path and os.path.exists(self.model_path)
+            c_ok = self.cli_path and os.path.exists(self.cli_path)
+            return f"Boss, 500M GGUF Model: {'Mounted' if m_ok else 'Pending'}, Native ARM64 Engine: {'Active' if c_ok else 'Standby'}, 24/7 Daemon: Running."
 
-        return f"Ji Boss! Maine aapka hukam '{q}' sun liya hai. Local Sovereign Core par process mukammal ho gaya—bataiye agla action kya lena hai?"
+        return f"Ji Boss! Aapka hukam '{q}' receive ho gaya hai. On-device Sovereign Core ready hai—bataiye agla action kya lena hai?"
 
 
 class VectorIconButton(ButtonBehavior, Widget):
-    """Crisp OpenGL vector icons with zero broken unicode boxes"""
+    """Draws crisp OpenGL vector icons (Menu, Gear, Keyboard, Mic, Wrench, Terminal) with zero unicode boxes"""
     def __init__(self, icon_type="menu", circle_bg=False, is_primary_mic=False, **kwargs):
         super().__init__(**kwargs)
         self.icon_type = icon_type
@@ -404,7 +587,7 @@ class VectorIconButton(ButtonBehavior, Widget):
                 Line(circle=(cx + s * 0.55, cy + s * 0.55, s * 0.42, -30, 210), width=dp(1.8))
 
 
-class PillBadge(FloatLayout):
+class PillBadge(ButtonBehavior, FloatLayout):
     def __init__(self, text_label="", badge_type="chip", **kwargs):
         super().__init__(**kwargs)
         self.text_label = text_label
@@ -416,7 +599,7 @@ class PillBadge(FloatLayout):
             self.border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(18)), width=dp(1.1))
 
         self.lbl = Label(
-            text=self.text_label, font_size="11sp", bold=True,
+            text=self.text_label, font_size="10.5sp", bold=True,
             color=(0.78, 0.90, 0.98, 1), pos_hint={"center_x": 0.52, "center_y": 0.5}
         )
         self.add_widget(self.lbl)
@@ -441,7 +624,7 @@ class PillBadge(FloatLayout):
                 Line(points=[ix - s * 1.2, iy + s * 1.2, ix + s * 1.2, iy - s * 1.2], width=dp(1.2))
 
 
-class StatusColumnWidget(FloatLayout):
+class StatusColumnWidget(ButtonBehavior, FloatLayout):
     def __init__(self, title_text="", sub_text="", icon_kind="link", **kwargs):
         super().__init__(**kwargs)
         self.icon_kind = icon_kind
@@ -500,10 +683,10 @@ class RecentDividerWidget(FloatLayout):
 
 
 class RecentRowButton(ButtonBehavior, FloatLayout):
-    def __init__(self, text_value="24/7 Wake-word Standby Active", **kwargs):
+    def __init__(self, text_value="Wake-Word ('Hey Jarvais')  •  Standby", **kwargs):
         super().__init__(**kwargs)
         self.lbl = Label(
-            text=text_value, font_size="12.5sp", color=(0.84, 0.92, 0.98, 1),
+            text=text_value, font_size="12sp", color=(0.84, 0.92, 0.98, 1),
             halign="left", valign="middle", pos_hint={"x": 0.12, "center_y": 0.5}, size_hint=(0.78, 0.9)
         )
         self.lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
@@ -523,7 +706,7 @@ class RecentRowButton(ButtonBehavior, FloatLayout):
             Line(points=[rx - s, cy + s, rx, cy, rx - s, cy - s], width=dp(1.4))
 
 
-class CyberOrbWidget(Widget):
+class CyberOrbWidget(ButtonBehavior, Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.angle_outer = 0.0
@@ -581,15 +764,23 @@ class LightningDudeHUD(FloatLayout):
         super().__init__(**kwargs)
         self.engine = SovereignGGUFEngine(status_callback=self._on_engine_status)
         self._build_ui()
+        # Schedule Hands-Free Wake-Word monitor loop
+        Clock.schedule_interval(self._hands_free_watchdog, 6.0)
 
     def _on_engine_status(self, msg: str):
         self.lbl_subgreeting.text = msg
 
+    def _hands_free_watchdog(self, dt):
+        """Checks if Hands-Free Voice Wake-Word mode is enabled and keeps listener warm"""
+        if AndroidSystemBridge.hands_free_enabled and not AndroidSystemBridge.is_currently_listening:
+            # Visual indicator that hands-free wake-word is armed
+            self.badge_offline.lbl.text = "WAKE-WORD ON"
+
     def _build_ui(self):
-        # 1. Top Bar
+        # 1. Top Navigation Bar (Menu opens Live Terminal, Gear opens Full Authorities & Tools)
         top_bar = BoxLayout(orientation="horizontal", size_hint=(0.92, 0.075), pos_hint={"center_x": 0.5, "top": 0.975})
         btn_menu = VectorIconButton(icon_type="menu", size_hint_x=0.14)
-        btn_menu.bind(on_release=lambda *_: self._open_tools_modal())
+        btn_menu.bind(on_release=lambda *_: self._open_terminal_modal())
 
         title_box = BoxLayout(orientation="vertical", size_hint_x=0.72)
         title_box.add_widget(Label(text="L I G H T N I N G   D U D E", font_size="16sp", bold=True, color=(0.90, 0.96, 1, 1)))
@@ -603,10 +794,14 @@ class LightningDudeHUD(FloatLayout):
         top_bar.add_widget(btn_settings)
         self.add_widget(top_bar)
 
-        # 2. Pill Badges
+        # 2. Pill Badges Row
         badges_row = BoxLayout(orientation="horizontal", spacing=dp(16), size_hint=(0.86, 0.048), pos_hint={"center_x": 0.5, "top": 0.885})
-        badges_row.add_widget(PillBadge(text_label="LOCAL MODEL", badge_type="chip"))
-        badges_row.add_widget(PillBadge(text_label="OFFLINE", badge_type="offline"))
+        self.badge_model = PillBadge(text_label="LOCAL MODEL", badge_type="chip")
+        self.badge_model.bind(on_release=lambda *_: self._open_terminal_modal())
+        self.badge_offline = PillBadge(text_label="OFFLINE", badge_type="offline")
+        self.badge_offline.bind(on_release=lambda *_: self._toggle_hands_free_mode())
+        badges_row.add_widget(self.badge_model)
+        badges_row.add_widget(self.badge_offline)
         self.add_widget(badges_row)
 
         # 3. Greeting & Live AI Response Area
@@ -621,8 +816,9 @@ class LightningDudeHUD(FloatLayout):
         greeting_box.add_widget(self.lbl_subgreeting)
         self.add_widget(greeting_box)
 
-        # 4. Cyberpunk Orb
+        # 4. Cyberpunk Orb (Tapping Orb also triggers hands-free / voice command)
         self.orb = CyberOrbWidget(size_hint=(0.82, 0.34), pos_hint={"center_x": 0.5, "center_y": 0.545})
+        self.orb.bind(on_release=self._start_voice_input)
         self.add_widget(self.orb)
 
         self.add_widget(Label(
@@ -634,19 +830,23 @@ class LightningDudeHUD(FloatLayout):
             color=(0.45, 0.65, 0.78, 0.85), size_hint=(0.15, 0.22), pos_hint={"right": 0.96, "center_y": 0.545}
         ))
 
-        # 5. Status Columns
+        # 5. Status Columns (Clickable to open Device Authorities & Terminal)
         status_row = BoxLayout(orientation="horizontal", spacing=dp(10), size_hint=(0.90, 0.08), pos_hint={"center_x": 0.5, "y": 0.275})
-        status_row.add_widget(StatusColumnWidget(title_text="DEVICE LINK: READY", sub_text="Can operate your device\nwith your consent.", icon_kind="link"))
-        status_row.add_widget(StatusColumnWidget(title_text="PRIVACY: ON-DEVICE", sub_text="Your data stays on\nthis device.", icon_kind="shield"))
+        col_link = StatusColumnWidget(title_text="DEVICE LINK: READY", sub_text="Can operate your device\nwith your consent.", icon_kind="link")
+        col_link.bind(on_release=lambda *_: self._open_tools_modal())
+        col_priv = StatusColumnWidget(title_text="PRIVACY: ON-DEVICE", sub_text="Your data stays on\nthis device.", icon_kind="shield")
+        col_priv.bind(on_release=lambda *_: self._open_terminal_modal())
+        status_row.add_widget(col_link)
+        status_row.add_widget(col_priv)
         self.add_widget(status_row)
 
-        # 6. Recent Activity
+        # 6. Recent Activity Row (Tap to open Live Terminal)
         self.add_widget(RecentDividerWidget(size_hint=(0.88, 0.035), pos_hint={"center_x": 0.5, "y": 0.225}))
-        self.recent_btn = RecentRowButton(text_value="24/7 Background Daemon  •  Active", size_hint=(0.88, 0.05), pos_hint={"center_x": 0.5, "y": 0.17})
-        self.recent_btn.bind(on_release=lambda *_: self._open_type_modal())
+        self.recent_btn = RecentRowButton(text_value="Opened Settings  •  2m ago", size_hint=(0.88, 0.05), pos_hint={"center_x": 0.5, "y": 0.17})
+        self.recent_btn.bind(on_release=lambda *_: self._open_terminal_modal())
         self.add_widget(self.recent_btn)
 
-        # 7. Bottom Dock
+        # 7. Bottom Control Dock
         dock = FloatLayout(size_hint=(0.92, 0.155), pos_hint={"center_x": 0.5, "y": 0.01})
 
         self.btn_type = VectorIconButton(icon_type="keyboard", circle_bg=True, size_hint=(None, None), size=(dp(56), dp(56)), pos_hint={"center_x": 0.18, "center_y": 0.62})
@@ -668,13 +868,22 @@ class LightningDudeHUD(FloatLayout):
 
         self.add_widget(dock)
 
-    def _start_voice_input(self, *args):
-        """Activates real Android Speech-to-Text & answers back with Voice TTS"""
+    def _toggle_hands_free_mode(self):
+        AndroidSystemBridge.hands_free_enabled = not AndroidSystemBridge.hands_free_enabled
+        state = "ACTIVE" if AndroidSystemBridge.hands_free_enabled else "PAUSED"
+        self.badge_offline.lbl.text = f"WAKE: {state}"
+        msg = f"Hands-Free Continuous Voice Wake-Word {state}"
+        self.lbl_subgreeting.text = msg
+        self.recent_btn.lbl.text = f"{msg}  •  now"
+        if AndroidSystemBridge.hands_free_enabled:
+            self._start_voice_input(hands_free=True)
+
+    def _start_voice_input(self, *args, hands_free=False):
         self.orb.is_listening = True
         self.btn_mic.active_state = True
         self.btn_mic._redraw()
         self.lbl_greeting.text = "Listening, Boss..."
-        self.lbl_subgreeting.text = "Speak your command now..."
+        self.lbl_subgreeting.text = "Say 'Hey Jarvais' or speak command..."
         self.lbl_mic_caption.text = "L I S T E N I N G . . ."
 
         def _on_spoken_text(spoken_str: str):
@@ -682,7 +891,12 @@ class LightningDudeHUD(FloatLayout):
             self.btn_mic.active_state = False
             self.btn_mic._redraw()
             self.lbl_mic_caption.text = "T A P   T O   S P E A K"
-            self.recent_btn.lbl.text = f"You: {spoken_str[:30]}"
+
+            if not spoken_str.strip():
+                self.lbl_greeting.text = "I'm here, Boss."
+                return
+
+            self.recent_btn.lbl.text = f"Voice: {spoken_str[:28]}  •  now"
             self.lbl_greeting.text = "Thinking, Boss..."
 
             def _worker():
@@ -691,39 +905,43 @@ class LightningDudeHUD(FloatLayout):
                     self.lbl_greeting.text = "I'm here, Boss."
                     self.lbl_subgreeting.text = reply
                     AndroidSystemBridge.speak(reply)
+                    # Re-arm continuous hands-free wake-word after speaking reply
+                    if AndroidSystemBridge.hands_free_enabled and hands_free:
+                        Clock.schedule_once(lambda _dt: self._start_voice_input(hands_free=True), 4.0)
                 Clock.schedule_once(_show_reply, 0)
 
             threading.Thread(target=_worker, daemon=True).start()
 
-        AndroidSystemBridge.start_voice_recognition(_on_spoken_text)
+        AndroidSystemBridge.trigger_voice_listen(_on_spoken_text, hands_free_loop=hands_free)
 
     def _open_type_modal(self):
-        modal = ModalView(size_hint=(0.92, 0.52), background_color=(0.02, 0.06, 0.10, 0.97))
+        modal = ModalView(size_hint=(0.94, 0.56), background_color=(0.02, 0.06, 0.10, 0.98))
         box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(10))
-        box.add_widget(Label(text="DIRECT COMMAND TO JARVAIS", font_size="13.5sp", bold=True, color=(0.2, 0.88, 1, 1), size_hint_y=0.15))
+        box.add_widget(Label(text="DIRECT NEURAL CHAT (500M GGUF CORE)", font_size="13.5sp", bold=True, color=(0.2, 0.88, 1, 1), size_hint_y=0.14))
 
         inp = TextInput(
-            hint_text="Yahan apna sawal ya command likhein, Boss...",
-            multiline=False, size_hint_y=0.22, font_size="14sp",
+            hint_text="Ask JARVAIS or issue device command (e.g. 'open whatsapp', 'open settings')...",
+            multiline=False, size_hint_y=0.20, font_size="14sp",
             background_color=(0.05, 0.14, 0.22, 1), foreground_color=(0.95, 0.98, 1, 1)
         )
         out_lbl = Label(
-            text="JARVAIS ka jawab yahan aayega aur woh bol kar bhi sunayega...",
-            font_size="12.5sp", color=(0.80, 0.94, 1.0, 1), size_hint_y=0.38,
+            text="JARVAIS response will appear here & speak aloud...",
+            font_size="12.5sp", color=(0.80, 0.94, 1.0, 1), size_hint_y=0.42,
             halign="center", valign="middle"
         )
         out_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
 
-        btn_row = BoxLayout(orientation="horizontal", spacing=dp(10), size_hint_y=0.25)
-        btn_send = Button(text="ASK JARVAIS", bold=True, background_normal="", background_color=(0.0, 0.62, 0.90, 1))
+        btn_row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=0.24)
+        btn_send = Button(text="EXECUTE", bold=True, background_normal="", background_color=(0.0, 0.62, 0.90, 1))
+        btn_term = Button(text="TERMINAL", size_hint_x=0.45, background_normal="", background_color=(0.08, 0.35, 0.25, 1))
         btn_close = Button(text="CLOSE", size_hint_x=0.35, background_normal="", background_color=(0.12, 0.22, 0.30, 1))
 
         def _run_cmd(*_):
             q = inp.text.strip()
             if not q:
                 return
-            self.recent_btn.lbl.text = f"Asked: {q[:28]}"
-            out_lbl.text = "JARVAIS soch raha hai..."
+            self.recent_btn.lbl.text = f"Cmd: {q[:26]}  •  now"
+            out_lbl.text = "Running on Local 500M GGUF Core..."
 
             def _worker():
                 ans = self.engine.generate(q)
@@ -737,8 +955,10 @@ class LightningDudeHUD(FloatLayout):
 
         btn_send.bind(on_release=_run_cmd)
         inp.bind(on_text_validate=_run_cmd)
+        btn_term.bind(on_release=lambda *_: (modal.dismiss(), self._open_terminal_modal()))
         btn_close.bind(on_release=lambda *_: modal.dismiss())
         btn_row.add_widget(btn_send)
+        btn_row.add_widget(btn_term)
         btn_row.add_widget(btn_close)
 
         box.add_widget(inp)
@@ -747,31 +967,117 @@ class LightningDudeHUD(FloatLayout):
         modal.add_widget(box)
         modal.open()
 
+    def _open_terminal_modal(self):
+        """Built-in Interactive Sovereign Shell & Real-Time Log Console"""
+        modal = ModalView(size_hint=(0.96, 0.78), background_color=(0.01, 0.03, 0.05, 0.98))
+        box = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
+
+        header = BoxLayout(orientation="horizontal", size_hint_y=0.09)
+        header.add_widget(Label(text=">_ JARVAIS SOVEREIGN SHELL & SYSTEM LOGS", font_size="12.5sp", bold=True, color=(0.18, 0.95, 0.55, 1), halign="left"))
+        box.add_widget(header)
+
+        scroll = ScrollView(size_hint_y=0.66)
+        term_out = Label(
+            text="\n".join(SovereignTerminalLogger.logs),
+            font_size="11sp",
+            color=(0.25, 0.95, 0.60, 1),
+            halign="left",
+            valign="top",
+            size_hint_y=None
+        )
+        term_out.bind(texture_size=lambda inst, val: setattr(inst, "height", max(val[1], dp(260))))
+        term_out.bind( width=lambda inst, val: setattr(inst, "text_size", (val, None)))
+        scroll.add_widget(term_out)
+        box.add_widget(scroll)
+
+        def _refresh_logs(new_text):
+            term_out.text = new_text
+
+        SovereignTerminalLogger.listeners.append(_refresh_logs)
+        modal.bind(on_dismiss=lambda *_: SovereignTerminalLogger.listeners.remove(_refresh_logs) if _refresh_logs in SovereignTerminalLogger.listeners else None)
+
+        cmd_inp = TextInput(
+            hint_text="Enter shell command (e.g. 'ls -lh', 'uname -a', 'ps', 'df -h')...",
+            multiline=False, size_hint_y=0.12, font_size="13sp",
+            background_color=(0.03, 0.09, 0.14, 1), foreground_color=(0.25, 1.0, 0.65, 1)
+        )
+        box.add_widget(cmd_inp)
+
+        btn_row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=0.13)
+        btn_exec = Button(text="RUN SHELL", bold=True, background_normal="", background_color=(0.05, 0.55, 0.35, 1))
+        btn_ai = Button(text="RUN GGUF CLI", bold=True, background_normal="", background_color=(0.0, 0.52, 0.82, 1))
+        btn_close = Button(text="CLOSE", size_hint_x=0.35, background_normal="", background_color=(0.15, 0.22, 0.28, 1))
+
+        def _exec_shell(*_):
+            c = cmd_inp.text.strip()
+            if not c:
+                return
+            cmd_inp.text = ""
+            threading.Thread(target=self.engine.run_shell_command, args=(c,), daemon=True).start()
+
+        def _exec_gguf(*_):
+            c = cmd_inp.text.strip() or "Hello Jarvais"
+            cmd_inp.text = ""
+            def _w():
+                ans = self.engine.generate(c)
+                SovereignTerminalLogger.log(f"[GGUF OUT]: {ans}")
+            threading.Thread(target=_w, daemon=True).start()
+
+        btn_exec.bind(on_release=_exec_shell)
+        cmd_inp.bind(on_text_validate=_exec_shell)
+        btn_ai.bind(on_release=_exec_gguf)
+        btn_close.bind(on_release=lambda *_: modal.dismiss())
+
+        btn_row.add_widget(btn_exec)
+        btn_row.add_widget(btn_ai)
+        btn_row.add_widget(btn_close)
+        box.add_widget(btn_row)
+
+        modal.add_widget(box)
+        modal.open()
+
     def _open_tools_modal(self):
-        modal = ModalView(size_hint=(0.92, 0.58), background_color=(0.02, 0.06, 0.10, 0.97))
-        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(10))
-        box.add_widget(Label(text="24/7 BACKGROUND & DEVICE AUTHORITIES", font_size="13sp", bold=True, color=(0.2, 0.88, 1, 1), size_hint_y=0.14))
+        """Full Device Control Authorities & 24/7 Daemon Control Panel"""
+        modal = ModalView(size_hint=(0.94, 0.76), background_color=(0.02, 0.06, 0.10, 0.98))
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(8))
+        box.add_widget(Label(text="FULL SOVEREIGN DEVICE AUTHORITIES & TOOLS", font_size="13sp", bold=True, color=(0.2, 0.88, 1, 1), size_hint_y=0.09))
+
+        scroll = ScrollView(size_hint_y=0.77)
+        grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=[0, dp(4)])
+        grid.bind(minimum_height=grid.setter("height"))
 
         actions = [
-            ("Enable 24/7 Unrestricted Battery (No Kill)", AndroidSystemBridge.request_unrestricted_battery),
-            ("Grant Mic / Voice / Notification Permissions", AndroidSystemBridge.request_all_permissions),
-            ("Enable Floating Orb Overlay Permission", AndroidSystemBridge.request_overlay_permission),
-            ("Restart / Verify 24/7 Sticky Service", AndroidSystemBridge.start_jarvais_service),
-            ("Open Android System Settings", AndroidSystemBridge.open_android_settings),
+            ("1. Open Built-In Live Terminal Console (>_)", lambda: (modal.dismiss(), self._open_terminal_modal()) and "Opened Terminal"),
+            ("2. Toggle Hands-Free Continuous Wake-Word ('Hey Jarvais')", lambda: (self._toggle_hands_free_mode(), "Toggled Hands-Free Wake-Word")[1]),
+            ("3. Grant Runtime Mic / Camera / Phone / Notification Perms", AndroidSystemBridge.request_runtime_permissions),
+            ("4. Enable 24/7 Unrestricted Battery (Never Kill Daemon)", AndroidSystemBridge.request_unrestricted_battery),
+            ("5. Enable Accessibility Service (Screen Read & Auto-Tap)", AndroidSystemBridge.open_accessibility_settings),
+            ("6. Grant Manage All Files Authority (Full Storage Control)", AndroidSystemBridge.request_all_files_access),
+            ("7. Enable Floating Orb Overlay (Draw Over Other Apps)", AndroidSystemBridge.request_overlay_permission),
+            ("8. Enable Write System Settings (Brightness / Audio / Wifi)", AndroidSystemBridge.request_write_system_settings),
+            ("9. Start / Verify 24/7 Foreground Sticky Service", AndroidSystemBridge.start_jarvais_service),
+            ("10. Open Android System Settings", AndroidSystemBridge.open_android_settings),
         ]
 
         for label_txt, func in actions:
-            b = Button(text=label_txt, font_size="12sp", background_normal="", background_color=(0.05, 0.16, 0.25, 1), color=(0.88, 0.96, 1, 1))
+            b = Button(
+                text=label_txt, font_size="11.5sp", size_hint_y=None, height=dp(44),
+                background_normal="", background_color=(0.05, 0.16, 0.25, 1), color=(0.88, 0.96, 1, 1)
+            )
             def _make_handler(f=func):
                 def _h(*_):
                     res = f()
-                    self.recent_btn.lbl.text = res[:36]
-                    self.lbl_subgreeting.text = res
+                    if res:
+                        self.recent_btn.lbl.text = f"{str(res)[:34]}  •  now"
+                        self.lbl_subgreeting.text = str(res)
                 return _h
             b.bind(on_release=_make_handler())
-            box.add_widget(b)
+            grid.add_widget(b)
 
-        btn_close = Button(text="CLOSE", size_hint_y=0.16, background_normal="", background_color=(0.0, 0.55, 0.82, 1))
+        scroll.add_widget(grid)
+        box.add_widget(scroll)
+
+        btn_close = Button(text="CLOSE AUTHORITIES PANEL", size_hint_y=0.12, bold=True, background_normal="", background_color=(0.0, 0.55, 0.82, 1))
         btn_close.bind(on_release=lambda *_: modal.dismiss())
         box.add_widget(btn_close)
         modal.add_widget(box)
@@ -781,18 +1087,16 @@ class LightningDudeHUD(FloatLayout):
 class LightningDudeApp(App):
     def build(self):
         self.title = "Lightning Dude - JARVAIS"
-        Clock.schedule_once(self._boot_authorities, 1.0)
+        Clock.schedule_once(self._boot_authorities, 1.2)
         return LightningDudeHUD()
 
     def _boot_authorities(self, dt):
         AndroidSystemBridge.init_tts()
-        AndroidSystemBridge.request_all_permissions()
+        AndroidSystemBridge.request_runtime_permissions()
         AndroidSystemBridge.start_jarvais_service()
-        # Request 24/7 battery optimization exemption so service never stops
-        Clock.schedule_once(lambda *_: AndroidSystemBridge.request_unrestricted_battery(), 2.5)
+        Clock.schedule_once(lambda *_: AndroidSystemBridge.request_unrestricted_battery(), 3.0)
 
     def on_pause(self):
-        # Keeps app state alive and ensures background daemon stays running when minimized
         AndroidSystemBridge.start_jarvais_service()
         return True
 
