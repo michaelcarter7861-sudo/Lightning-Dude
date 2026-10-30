@@ -17,12 +17,9 @@ orientation = portrait
 fullscreen = 0
 android.presplash_color = #050D14
 
-# 24/7 Sticky Foreground Service
 services = Jarvais:service.py:foreground:sticky
 
-# NOTE: Model ko APK mein inject nahi kiya gaya! Ab yeh alag se select hoga.
-# Sirf native ARM64 llama-cli binary APK ke andar asset ke tor par pack hogi:
-android.add_assets = assets/llama-cli:llama-cli
+# No add_assets here to prevent path crash; handled cleanly via python code extraction
 
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,CHANGE_WIFI_STATE,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS,WAKE_LOCK,FOREGROUND_SERVICE,FOREGROUND_SERVICE_MICROPHONE,POST_NOTIFICATIONS,SYSTEM_ALERT_WINDOW,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,RECEIVE_BOOT_COMPLETED,MANAGE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,WRITE_SETTINGS,QUERY_ALL_PACKAGES,PACKAGE_USAGE_STATS,CAMERA,CALL_PHONE,READ_CONTACTS,BLUETOOTH,VIBRATE
 
