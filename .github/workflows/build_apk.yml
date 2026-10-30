@@ -1,4 +1,4 @@
-name: Build Sovereign Lightning Dude APK (GGUF Integrated)
+name: Build Sovereign Lightning Dude APK (GGUF + Native ARM64 Engine)
 
 on:
   workflow_dispatch:
@@ -20,12 +20,12 @@ jobs:
         with:
           lfs: true
 
-      - name: Pull GGUF Model, Prepare Assets & Create Gradle Hook
+      - name: Pull GGUF Model, Cross-Compile ARM64 llama-cli & Prepare Assets
         run: |
           git lfs install
           git lfs pull
           
-          echo "=== Checking GGUF Model & Core Files ==="
+          echo "=== Verifying 500M GGUF Model ==="
           ls -lh main.py service.py buildozer.spec
           ls -lh models/gguf/LightningDude-Sovereign-500M.gguf
 
@@ -34,14 +34,41 @@ jobs:
             echo "ERROR: GGUF file is too small ($fsize bytes). LFS pull failed!"
             exit 1
           fi
-          echo "[⚡] Verified 500M GGUF Model Size: $fsize bytes"
 
-          # Copy GGUF into assets folder for clean Buildozer packaging
           mkdir -p assets
-          cp models/gguf/LightningDude-Sovereign-500M.gguf assets/
+          cp models/gguf/LightningDude-Sovereign-500M.gguf assets/LightningDude-Sovereign-500M.gguf
+
+          # Cross-compile static ARM64 llama-cli using Android NDK so GGUF runs natively on phone
+          echo "=== Cross-Compiling Native ARM64 llama-cli for Android ==="
+          NDK_PATH="$ANDROID_NDK_HOME"
+          if [ ! -d "$NDK_PATH" ]; then
+            NDK_PATH=$(find /usr/local/lib/android/sdk/ndk -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
+          fi
+          echo "Using Android NDK: $NDK_PATH"
+
+          git clone --depth 1 --branch b3600 https://github.com/ggerganov/llama.cpp.git /tmp/llama_android || git clone --depth 1 https://github.com/ggerganov/llama.cpp.git /tmp/llama_android
+          cmake -B /tmp/llama_android/build_arm64 -S /tmp/llama_android \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_PATH/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_EXAMPLES=ON \
+            -DLLAMA_NATIVE=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-openmp"
+          cmake --build /tmp/llama_android/build_arm64 --config Release -j4 --target llama-cli || cmake --build /tmp/llama_android/build_arm64 --config Release -j4 --target main
+
+          if [ -f "/tmp/llama_android/build_arm64/bin/llama-cli" ]; then
+            cp /tmp/llama_android/build_arm64/bin/llama-cli assets/llama-cli
+          elif [ -f "/tmp/llama_android/build_arm64/bin/main" ]; then
+            cp /tmp/llama_android/build_arm64/bin/main assets/llama-cli
+          else
+            touch assets/llama-cli
+          fi
+          chmod +x assets/llama-cli
           ls -lh assets/
 
-          # Create p4a_hook.py to disable compression on .gguf files & increase Gradle heap
+          # Create p4a_hook.py to keep .gguf & llama-cli uncompressed & set 6GB Gradle Heap
           cat << 'EOF' > p4a_hook.py
           from pathlib import Path
 
@@ -54,9 +81,9 @@ jobs:
               if gradle_file.exists():
                   content = gradle_file.read_text(encoding="utf-8")
                   if "noCompress" not in content:
-                      patch = "\nandroid {\n    aaptOptions {\n        noCompress 'gguf'\n    }\n}\n"
+                      patch = "\nandroid {\n    aaptOptions {\n        noCompress 'gguf', 'llama-cli'\n    }\n}\n"
                       gradle_file.write_text(content + patch, encoding="utf-8")
-                      print("[⚡] Patched build.gradle with noCompress 'gguf'!")
+                      print("[⚡] Patched build.gradle with noCompress 'gguf', 'llama-cli'!")
 
               gradle_props = dist_dir / "gradle.properties"
               props_text = gradle_props.read_text(encoding="utf-8") if gradle_props.exists() else ""
@@ -68,7 +95,7 @@ jobs:
               print("[⚡] Patched gradle.properties with 6GB Heap Memory!")
           EOF
 
-      - name: Set up JDK 17 (Required by Android Gradle Plugin)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -101,7 +128,7 @@ jobs:
             ~/.buildozer
           key: buildozer-sdk-ndk-py311-${{ runner.os }}-v4
 
-      - name: Compile Sovereign APK with GGUF Asset
+      - name: Compile Sovereign APK
         env:
           CFLAGS: "-Wno-error -Wno-deprecated-declarations -Wno-incompatible-function-pointer-types"
           JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
