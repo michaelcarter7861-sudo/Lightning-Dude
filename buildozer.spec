@@ -6,7 +6,6 @@ package.domain = org.jarvais
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,json,jinja
 
-# Exclude heavy safetensors shards AND models folder from private.mp3 so GGUF isn't packed twice!
 source.exclude_dirs = tests, bin, .git, .github, llama.cpp, models, assets
 source.exclude_exts = safetensors, gguf, part00, part01, part02, part03, part04, part05
 
@@ -18,14 +17,14 @@ orientation = portrait
 fullscreen = 0
 android.presplash_color = #050D14
 
-# 24/7 Background Service Integration
-services = Jarvais:service.py:foreground
+# 24/7 Sticky Foreground Service
+services = Jarvais:service.py:foreground:sticky
 
-# Clean Asset path mapped via local assets directory
-android.add_assets = assets/LightningDude-Sovereign-500M.gguf
+# Pack GGUF model directly into APK assets root
+android.add_assets = assets/LightningDude-Sovereign-500M.gguf:LightningDude-Sovereign-500M.gguf
 
-# Full Device Authorities + Floating Orb Overlay + Background Service Permissions
-android.permissions = INTERNET,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,SYSTEM_ALERT_WINDOW,VIBRATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
+# Full 24/7 Background + Voice + Battery Exemption Permissions
+android.permissions = INTERNET,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,SYSTEM_ALERT_WINDOW,REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,RECEIVE_BOOT_COMPLETED,VIBRATE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 
 android.api = 33
 android.minapi = 24
