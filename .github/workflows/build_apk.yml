@@ -94,7 +94,7 @@ jobs:
           path: |
             .buildozer
             ~/.buildozer
-          key: buildozer-sdk-ndk-py311-${{ runner.os }}-v5
+          key: buildozer-sdk-ndk-py311-${{ runner.os }}-v6
 
       - name: Compile Sovereign APK
         env:
