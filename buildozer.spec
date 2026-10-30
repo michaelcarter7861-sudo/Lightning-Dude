@@ -33,5 +33,5 @@ p4a.branch = v2024.01.21
 p4a.hook = p4a_hook.py
 
 [buildozer]
-log_level = 1
+log_level = 2
 warn_on_root = 0
