@@ -196,7 +196,6 @@ class AndroidSystemBridge:
             os.chmod(str(cli_target), 0o755)
             return str(cli_target)
 
-        # Extract from assets
         try:
             if platform == "android":
                 from jnius import autoclass
@@ -238,7 +237,6 @@ class SovereignGGUFEngine:
         self.is_ready = True
 
     def _find_default_external_model(self) -> str:
-        # Common external search directories on Android storage
         search_dirs = [
             Path("/storage/emulated/0/Download"),
             Path("/storage/emulated/0/Documents"),
@@ -276,7 +274,6 @@ class SovereignGGUFEngine:
 
         low = q.lower()
         if "setting" in low:
-            AndroidSystemBridge.open_android_settings() if hasattr(AndroidSystemBridge, 'open_android_settings') else None
             return "Boss, Android System Settings khol di hain."
 
         if not self.model_path or not Path(self.model_path).exists():
@@ -445,7 +442,7 @@ class LightningDudeHUD(FloatLayout):
         badges_row.add_widget(self.badge_model)
         self.add_widget(badges_row)
 
-0        greeting_box = BoxLayout(orientation="vertical", size_hint=(0.90, 0.095), pos_hint={"center_x": 0.5, "top": 0.82})
+        greeting_box = BoxLayout(orientation="vertical", size_hint=(0.90, 0.095), pos_hint={"center_x": 0.5, "top": 0.82})
         self.lbl_greeting = Label(text="I'm here, Boss.", font_size="24sp", bold=True, color=(0.94, 0.98, 1, 1), size_hint_y=0.52)
         self.lbl_subgreeting = Label(text="Tap badge above to select your external .gguf file.", font_size="12sp", color=(0.56, 0.78, 0.92, 1), halign="center", valign="middle", size_hint_y=0.48)
         self.lbl_subgreeting.bind(size=lambda inst, val: setattr(inst, "text_size", val))
@@ -458,7 +455,7 @@ class LightningDudeHUD(FloatLayout):
         self.add_widget(self.orb)
 
         status_row = BoxLayout(orientation="horizontal", spacing=dp(10), size_hint=(0.90, 0.08), pos_hint={"center_x": 0.5, "y": 0.275})
-        col_link = StatusColumnWidget(title_text="EXTERNAL MODEL", sub_text="Select model from storage\nmanually.", icon_kind="link")
+        col_link = StatusColumnWidget(title_text="EXTERNAL MODEL", sub_text="Select model from storage\nmanually.")
         status_row.add_widget(col_link)
         self.add_widget(status_row)
 
@@ -482,7 +479,6 @@ class LightningDudeHUD(FloatLayout):
         self.add_widget(dock)
 
     def _open_model_picker(self):
-        """Scans storage and lists available .gguf model files"""
         modal = ModalView(size_hint=(0.94, 0.80), background_color=(0.02, 0.06, 0.10, 0.98))
         box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(10))
         box.add_widget(Label(text="SELECT EXTERNAL .GGUF MODEL FILE", font_size="13.5sp", bold=True, color=(0.2, 0.88, 1, 1), size_hint_y=0.08))
@@ -491,7 +487,6 @@ class LightningDudeHUD(FloatLayout):
         grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=[0, dp(4)])
         grid.bind(minimum_height=grid.setter("height"))
 
-        # Search common download & storage directories for .gguf files
         found_files = []
         search_roots = [Path("/storage/emulated/0/Download"), Path("/storage/emulated/0/Documents"), Path("/storage/emulated/0")]
         if platform == "android":
