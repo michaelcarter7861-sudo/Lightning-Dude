@@ -20,7 +20,7 @@ jobs:
         with:
           lfs: true
 
-      - name: Pull GGUF Model via Git LFS & Verify Files
+      - name: Pull GGUF Model via Git LFS & Prepare Assets
         run: |
           git lfs install
           git lfs pull
@@ -36,11 +36,22 @@ jobs:
           fi
           echo "[⚡] Verified 500M GGUF Model Size: $fsize bytes"
 
+          # Copy GGUF into assets folder for clean Buildozer packaging
+          mkdir -p assets
+          cp models/gguf/LightningDude-Sovereign-500M.gguf assets/
+          ls -lh assets/
+
+      - name: Set up JDK 17 (Required by Android Gradle Plugin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install System Dependencies for Buildozer
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk python3-pip autoconf libtool \
+            git zip unzip python3-pip autoconf libtool \
             pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
             libtinfo5 cmake libffi-dev libssl-dev automake ccache \
             libltdl-dev patch
@@ -55,19 +66,21 @@ jobs:
           pip install --upgrade pip "setuptools<70.0.0" wheel
           pip install buildozer==1.5.0 cython==0.29.36 virtualenv
 
-      - name: Cache Buildozer Android SDK/NDK (Clean Py3.11 Key)
+      - name: Cache Buildozer Android SDK/NDK
         uses: actions/cache@v4
         with:
           path: |
+            .buildozer
             ~/.buildozer
-          key: buildozer-sdk-ndk-py311-${{ runner.os }}-v3
+          key: buildozer-sdk-ndk-py311-${{ runner.os }}-v4
 
       - name: Compile Sovereign APK with GGUF Asset
         env:
           CFLAGS: "-Wno-error -Wno-deprecated-declarations -Wno-incompatible-function-pointer-types"
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         run: |
-          # Clean any leftover broken .buildozer folder in workspace before building
-          rm -rf .buildozer
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
           yes | buildozer android debug
           ls -lh bin/
 
